@@ -364,7 +364,7 @@ private fun TimeBlock(
         val fs = LocalDensity.current.fontScale
         val byWidth = maxWidth.value / (time.length * 0.56f) / fs
         val byHeight = (maxHeight.value - 96f) / 1.15f / fs
-        val size = minOf(byWidth, byHeight, 132f).coerceAtLeast(24f)
+        val numSize = minOf(byWidth, byHeight, 132f).coerceAtLeast(24f)
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
             Text(
                 phase.uppercase(),
@@ -376,10 +376,10 @@ private fun TimeBlock(
             Text(
                 time,
                 style = TextStyle(
-                    fontSize = size.sp,
-                    lineHeight = (size * 1.05f).sp,
+                    fontSize = numSize.sp,
+                    lineHeight = (numSize * 1.05f).sp,
                     fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-size * 0.03f).sp,
+                    letterSpacing = (-numSize * 0.03f).sp,
                     fontFeatureSettings = "tnum",
                 ),
                 maxLines = 1,

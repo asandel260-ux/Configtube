@@ -1,5 +1,9 @@
 package com.studyflow.app
 
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -132,4 +136,16 @@ fun Section(title: String, content: @Composable () -> Unit) {
             content()
         }
     }
+}
+
+@Composable
+fun ColorDot(color: Long, size: Int = 10) {
+    Row(Modifier.size(size.dp).clip(CircleShape).background(Color(color))) {}
+}
+
+@Composable
+fun IconLabel(icon: ImageVector, text: String) {
+    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+    Spacer(Modifier.width(8.dp))
+    Text(text)
 }

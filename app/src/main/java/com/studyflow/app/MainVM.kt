@@ -63,7 +63,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
 
     private fun alarmIntent(phase: Int): PendingIntent {
         val i = Intent(app, AlarmReceiver::class.java)
-            .putExtra("title", if (phase == 0) "Focus session complete 🎉" else "Break is over")
+            .putExtra("title", if (phase == 0) "Focus session complete" else "Break is over")
             .putExtra("text", if (phase == 0) "Time for a break." else "Ready to focus again?")
         return PendingIntent.getBroadcast(
             app, 1, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

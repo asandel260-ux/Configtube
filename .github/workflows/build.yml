@@ -22,6 +22,17 @@ jobs:
         with:
           gradle-version: 8.7
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate Lucide icons
+        run: |
+          mkdir -p /tmp/lu && cd /tmp/lu
+          npm init -y >/dev/null
+          npm install lucide-static
+          node "$GITHUB_WORKSPACE/scripts/gen-icons.mjs" /tmp/lu/node_modules/lucide-static/icons "$GITHUB_WORKSPACE/app/src/main/java/com/studyflow/app/Icons.kt"
+
       - name: Build debug APK
         run: |
           set +e
@@ -55,5 +66,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add -f dist/StudyFlow-debug.apk
+          git add -f app/src/main/java/com/studyflow/app/Icons.kt
           git commit -m "Add built APK [skip ci]" || exit 0
           git push

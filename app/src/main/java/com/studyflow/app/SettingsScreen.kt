@@ -128,9 +128,9 @@ fun SettingsScreen(vm: MainVM) {
         }
 
         Section("Data") {
-            OutlinedButton(onClick = { exportJson.launch("studyflow-backup.json") }, modifier = Modifier.fillMaxWidth()) { Text("Export backup (JSON)") }
-            OutlinedButton(onClick = { exportCsv.launch("studyflow-sessions.csv") }, modifier = Modifier.fillMaxWidth()) { Text("Export sessions (CSV)") }
-            OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Restore from backup") }
+            OutlinedButton(onClick = { exportJson.launch("studyflow-backup.json") }, modifier = Modifier.fillMaxWidth()) { IconLabel(Ico.Download, "Export backup (JSON)") }
+            OutlinedButton(onClick = { exportCsv.launch("studyflow-sessions.csv") }, modifier = Modifier.fillMaxWidth()) { IconLabel(Ico.Download, "Export sessions (CSV)") }
+            OutlinedButton(onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) }, modifier = Modifier.fillMaxWidth()) { IconLabel(Ico.Upload, "Restore from backup") }
             TextButton(onClick = { confirmReset = true }) { Text("Erase all data") }
         }
     }

@@ -134,7 +134,7 @@ fun StatsScreen(vm: MainVM) {
                     val sub = vm.subjects.firstOrNull { it.id == id }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(Modifier.fillMaxWidth()) {
-                            Text("${sub?.emoji ?: "❔"} ${sub?.name ?: "Deleted subject"}", modifier = Modifier.weight(1f))
+                            Text(sub?.name ?: "Deleted subject", modifier = Modifier.weight(1f))
                             Text("${fmtDur(sec)} · ${if (total > 0) sec * 100 / total else 0}%")
                         }
                         LinearProgressIndicator(
@@ -154,7 +154,7 @@ fun StatsScreen(vm: MainVM) {
                     Text("Subject goals today", fontWeight = FontWeight.Bold)
                     withGoals.forEach { sub ->
                         val sec = sessions.filter { it.subjectId == sub.id && it.start.day() == today }.sumOf { it.durSec }
-                        GoalBar("${sub.emoji} ${sub.name}", sec, sub.dailyGoalMin * 60L, Color(sub.color))
+                        GoalBar(sub.name, sec, sub.dailyGoalMin * 60L, Color(sub.color))
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.studyflow.app
 
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -52,17 +53,14 @@ fun SubjectsScreen(vm: MainVM) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Subjects", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(onClick = { creating = true }) { Text("+ New") }
+                Button(onClick = { creating = true }) { IconLabel(Ico.Plus, "New subject") }
             }
         }
         items(vm.subjects, key = { it.id }) { sub ->
             val total = vm.sessions.filter { it.subjectId == sub.id }.sumOf { it.durSec }
             Card(Modifier.fillMaxWidth().clickable { editing = sub }) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(44.dp).clip(CircleShape).background(Color(sub.color)),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(sub.emoji, fontSize = 22.sp) }
+                    ColorDot(sub.color, 14)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(sub.name + if (sub.archived) " (archived)" else "", fontWeight = FontWeight.SemiBold)
                         Text(
@@ -71,7 +69,7 @@ fun SubjectsScreen(vm: MainVM) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text("✏️")
+                    Icon(Ico.Pencil, "Edit subject", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -119,15 +117,6 @@ fun SubjectDialog(
                     value = name, onValueChange = { name = it.take(30) },
                     label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = emoji, onValueChange = { emoji = it.take(4) },
-                    label = { Text("Emoji / icon (type any)") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    EMOJIS.forEach { e ->
-                        FilterChip(selected = e == emoji, onClick = { emoji = e }, label = { Text(e) })
-                    }
-                }
                 Text("Colour")
                 ColorPicker(color) { color = it }
                 SliderRow(

@@ -91,7 +91,8 @@ fun TimerScreen(vm: MainVM) {
                     selected = sub.id == t.subjectId,
                     enabled = !t.running,
                     onClick = { vm.selectSubject(sub.id) },
-                    label = { Text("${sub.emoji} ${sub.name}") },
+                    label = { Text(sub.name) },
+                    leadingIcon = { ColorDot(sub.color) },
                 )
             }
         }
@@ -108,7 +109,7 @@ fun TimerScreen(vm: MainVM) {
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(subject.emoji, fontSize = 30.sp)
+                Text(subject.name, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(clock(shown, s.showSeconds), fontSize = 52.sp, fontWeight = FontWeight.Bold)
                 Text(phaseLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -120,7 +121,7 @@ fun TimerScreen(vm: MainVM) {
                 onClick = { if (t.running) vm.pause() else vm.start() },
                 modifier = Modifier.height(56.dp).widthIn(min = 140.dp),
             ) {
-                Text(if (t.running) "Pause" else if (idle) "Start" else "Resume", fontSize = 18.sp)
+                IconLabel(if (t.running) Ico.Pause else Ico.Play, if (t.running) "Pause" else if (idle) "Start" else "Resume")
             }
             if (t.phase == 0) {
                 OutlinedButton(

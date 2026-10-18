@@ -1,5 +1,11 @@
 package com.studyflow.app
 
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -48,12 +54,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Tab(val label: String, val emoji: String) {
-    Timer("Timer", "⏱️"),
-    Log("Log", "📖"),
-    Stats("Stats", "📊"),
-    Subjects("Subjects", "🗂️"),
-    Settings("Settings", "⚙️"),
+enum class Tab(val label: String, val icon: ImageVector) {
+    Timer("Timer", Ico.Timer),
+    Log("Log", Ico.Log),
+    Stats("Stats", Ico.Stats),
+    Subjects("Subjects", Ico.Folder),
+    Settings("Settings", Ico.Settings),
 }
 
 @Composable
@@ -106,8 +112,17 @@ fun App(vm: MainVM) {
                     NavigationBarItem(
                         selected = t == tab,
                         onClick = { cur = t.name },
-                        icon = { Text(t.emoji, fontSize = 20.sp) },
-                        label = { Text(t.label) },
+                        icon = { Icon(t.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                        label = {
+                            Text(t.label, fontWeight = if (t == tab) FontWeight.SemiBold else FontWeight.Normal)
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color.Transparent,
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                     )
                 }
             }

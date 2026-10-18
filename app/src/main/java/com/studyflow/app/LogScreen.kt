@@ -1,5 +1,7 @@
 package com.studyflow.app
 
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.background
@@ -64,7 +66,7 @@ fun LogScreen(vm: MainVM) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Study log", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(onClick = { showAdd = true }) { Text("+ Add session") }
+                Button(onClick = { showAdd = true }) { IconLabel(Ico.Plus, "Add session") }
             }
         }
         if (groups.isEmpty()) {
@@ -81,10 +83,7 @@ fun LogScreen(vm: MainVM) {
                 val sub = vm.subjects.firstOrNull { it.id == ses.subjectId }
                 Card(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape).background(Color(sub?.color ?: 0xFF888888)),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(sub?.emoji ?: "❔") }
+                        ColorDot(sub?.color ?: 0xFF888888, 12)
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                             Text(sub?.name ?: "Deleted subject", fontWeight = FontWeight.SemiBold)
                             val at = Instant.ofEpochMilli(ses.start).atZone(ZoneId.systemDefault()).toLocalTime().format(timeFmt)
@@ -95,7 +94,9 @@ fun LogScreen(vm: MainVM) {
                             )
                         }
                         Text(fmtDur(ses.durSec), fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { deleting = ses }) { Text("🗑") }
+                        IconButton(onClick = { deleting = ses }) {
+                            Icon(Ico.Trash, "Delete session", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }
@@ -132,7 +133,7 @@ fun AddSessionDialog(vm: MainVM, onDismiss: () -> Unit) {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     vm.subjects.filter { !it.archived }.forEach {
-                        FilterChip(selected = it.id == subj, onClick = { subj = it.id }, label = { Text("${it.emoji} ${it.name}") })
+                        FilterChip(selected = it.id == subj, onClick = { subj = it.id }, label = { Text(it.name) }, leadingIcon = { ColorDot(it.color) })
                     }
                 }
                 OutlinedTextField(

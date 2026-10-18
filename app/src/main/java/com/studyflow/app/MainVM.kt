@@ -37,7 +37,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         }
         if (subjects.none { it.id == timer.subjectId && !it.archived }) {
             val first = subjects.firstOrNull { !it.archived } ?: subjects.first()
-            setTimer(timer.copy(subjectId = first.id))
+            applyTimer(timer.copy(subjectId = first.id))
         }
     }
 
@@ -55,7 +55,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         if (timer.running && timer.mode == 1 && elapsed() >= targetMs()) completePhase()
     }
 
-    private fun setTimer(t: TimerState) {
+    private fun applyTimer(t: TimerState) {
         timer = t
         store.saveTimer(t)
         schedule(t)
@@ -89,17 +89,17 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
     fun start() {
         val n = System.currentTimeMillis()
         now = n
-        setTimer(timer.copy(running = true, segStart = n))
+        applyTimer(timer.copy(running = true, segStart = n))
     }
 
     fun pause() {
         val n = System.currentTimeMillis()
         now = n
         val e = timer.baseMs + (n - timer.segStart).coerceAtLeast(0)
-        setTimer(timer.copy(running = false, baseMs = e))
+        applyTimer(timer.copy(running = false, baseMs = e))
     }
 
-    fun reset() = setTimer(timer.copy(running = false, baseMs = 0))
+    fun reset() = applyTimer(timer.copy(running = false, baseMs = 0))
 
     fun finish(note: String) {
         val n = System.currentTimeMillis()
@@ -109,11 +109,11 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         if (t.phase == 0 && e / 1000 >= settings.minSaveSec && e > 0) {
             addSession(t.subjectId, n - e, e / 1000, note, t.mode)
         }
-        setTimer(t.copy(running = false, baseMs = 0, phase = 0))
+        applyTimer(t.copy(running = false, baseMs = 0, phase = 0))
     }
 
     fun skipBreak() {
-        if (timer.phase != 0) setTimer(timer.copy(running = false, baseMs = 0, phase = 0))
+        if (timer.phase != 0) applyTimer(timer.copy(running = false, baseMs = 0, phase = 0))
     }
 
     private fun completePhase() {
@@ -130,7 +130,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
             next = 0
         }
         buzz()
-        setTimer(
+        applyTimer(
             t.copy(
                 phase = next, baseMs = 0, cycles = cycles,
                 running = settings.autoStart,
@@ -139,9 +139,9 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun setMode(m: Int) = setTimer(timer.copy(mode = m, phase = 0, baseMs = 0, running = false))
+    fun setMode(m: Int) = applyTimer(timer.copy(mode = m, phase = 0, baseMs = 0, running = false))
 
-    fun selectSubject(id: String) = setTimer(timer.copy(subjectId = id))
+    fun selectSubject(id: String) = applyTimer(timer.copy(subjectId = id))
 
     // ---------- Sessions ----------
 

@@ -25,7 +25,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -63,12 +62,12 @@ fun LogScreen(vm: MainVM) {
     Box(Modifier.fillMaxSize()) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Study log", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Study log", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             }
         }
         if (groups.isEmpty()) {
@@ -84,7 +83,7 @@ fun LogScreen(vm: MainVM) {
             items(list, key = { it.id }) { ses ->
                 val sub = vm.subjects.firstOrNull { it.id == ses.subjectId }
                 Card(Modifier.fillMaxWidth().animateItemPlacement()) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         ColorDot(sub?.color ?: 0xFF888888, 12)
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                             Text(sub?.name ?: "Deleted subject", fontWeight = FontWeight.SemiBold)

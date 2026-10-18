@@ -1,5 +1,7 @@
 package com.studyflow.app
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -121,7 +123,9 @@ fun App(vm: MainVM) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar {
+            Column {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+            NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
                 tabs.forEach { t ->
                     NavigationBarItem(
                         selected = t == tab,
@@ -139,6 +143,7 @@ fun App(vm: MainVM) {
                         ),
                     )
                 }
+            }
             }
         },
     ) { pad ->

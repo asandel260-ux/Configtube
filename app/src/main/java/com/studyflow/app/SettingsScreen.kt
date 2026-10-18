@@ -64,10 +64,10 @@ fun SettingsScreen(vm: MainVM) {
     }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Settings", style = MaterialTheme.typography.headlineMedium)
 
         Section("Appearance", startOpen = true) {
             Text("Theme")
@@ -80,8 +80,8 @@ fun SettingsScreen(vm: MainVM) {
             ColorPicker(s.accent) { c -> vm.update { it.copy(accent = c) } }
             SliderRow("Text size", (s.fontScale * 100).roundToInt(), 80, 140, 5, "%") { v -> vm.update { it.copy(fontScale = v / 100f) } }
             SliderRow("Corner roundness", s.corner, 0, 32, 2, " dp") { v -> vm.update { it.copy(corner = v) } }
-            SliderRow("Timer ring thickness", s.ringWidth, 6, 32, 2, " dp") { v -> vm.update { it.copy(ringWidth = v) } }
-            SwitchRow("Ring uses subject colour", null, s.subjectColorRing) { v -> vm.update { it.copy(subjectColorRing = v) } }
+            SliderRow("Progress bar thickness", s.barWidth, 2, 16, 1, " dp") { v -> vm.update { it.copy(barWidth = v) } }
+            SwitchRow("Progress uses subject colour", null, s.subjectColorRing) { v -> vm.update { it.copy(subjectColorRing = v) } }
         }
 
         Section("Timer") {

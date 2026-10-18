@@ -1,5 +1,10 @@
 package com.studyflow.app
 
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
@@ -51,7 +56,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -165,7 +169,7 @@ fun SwitchRow(label: String, desc: String? = null, checked: Boolean, onChange: (
 
 @Composable
 fun ColorDot(color: Long, size: Int = 10) {
-    Row(Modifier.size(size.dp).clip(CircleShape).background(Color(color))) {}
+    Row(Modifier.size(size.dp).background(Color(color))) {}
 }
 
 @Composable
@@ -228,8 +232,14 @@ fun AnimatedBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
     val anims = LocalAnimations.current
     var go by remember { mutableStateOf(!anims) }
     LaunchedEffect(Unit) { go = true }
-    val p by animateFloatAsState(if (go) progress else 0f, animSpec(700), label = "bar")
-    LinearProgressIndicator(progress = { p }, color = color, modifier = modifier)
+    val p = animateFloatAsState(if (go) progress else 0f, animSpec(700), label = "bar")
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    Box(
+        modifier.drawBehind {
+            drawRect(track)
+            drawRect(color, size = Size(size.width * p.value.coerceIn(0f, 1f), size.height))
+        }
+    )
 }
 
 @Composable
@@ -245,7 +255,7 @@ fun GrowBar(target: Float, index: Int) {
         Modifier
             .fillMaxWidth()
             .height(h.dp)
-            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+            .background(MaterialTheme.colorScheme.primary, RectangleShape)
     )
 }
 
@@ -314,7 +324,7 @@ fun Section(title: String, startOpen: Boolean = false, content: @Composable () -
     Card(Modifier.fillMaxWidth()) {
         Column {
             Row(
-                Modifier.fillMaxWidth().clickable { open = !open }.padding(16.dp),
+                Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -327,10 +337,25 @@ fun Section(title: String, startOpen: Boolean = false, content: @Composable () -
             }
             AnimatedVisibility(visible = open, enter = enterT(), exit = exitT()) {
                 Column(
-                    Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    Modifier.padding(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) { content() }
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Swiss primitives: hairline rules instead of cards
+// ---------------------------------------------------------------------------
+
+fun Modifier.topRule(color: Color, widthDp: Float = 1f): Modifier = drawBehind {
+    drawLine(color, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = widthDp.dp.toPx())
+}
+
+/** Flat section: a 1dp rule on top, no fill, no shadow, no radius. */
+@Composable
+fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val line = MaterialTheme.colorScheme.outline
+    Column(modifier.topRule(line), content = content)
 }

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -59,10 +58,10 @@ fun StatsScreen(vm: MainVM) {
         .sortedByDescending { it.second }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        Text("Statistics", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Statistics", style = MaterialTheme.typography.headlineMedium)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = range == 7, onClick = { range = 7 }, label = { Text("7 days") })
@@ -78,7 +77,7 @@ fun StatsScreen(vm: MainVM) {
 
         if (s.dailyGoal > 0 || s.weeklyGoal > 0) {
             Card(Modifier.fillMaxWidth().enter(2)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Goals", fontWeight = FontWeight.Bold)
                     if (s.dailyGoal > 0) GoalBar("Daily", todaySec, s.dailyGoal * 60L)
                     if (s.weeklyGoal > 0) GoalBar("Weekly", weekSec, s.weeklyGoal * 60L)
@@ -87,7 +86,7 @@ fun StatsScreen(vm: MainVM) {
         }
 
         Card(Modifier.fillMaxWidth().enter(4)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth()) {
                     Text(if (range == 7) "Last 7 days" else "Last 30 days", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     Text("avg ${fmtDur(avg)}/day", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -123,7 +122,7 @@ fun StatsScreen(vm: MainVM) {
         }
 
         Card(Modifier.fillMaxWidth().enter(6)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("By subject", fontWeight = FontWeight.Bold)
                 if (bySubject.isEmpty()) Text("Nothing tracked in this range.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 bySubject.forEach { (id, sec) ->
@@ -142,7 +141,7 @@ fun StatsScreen(vm: MainVM) {
         val withGoals = vm.subjects.filter { it.dailyGoalMin > 0 && !it.archived }
         if (withGoals.isNotEmpty()) {
             Card(Modifier.fillMaxWidth().enter(8)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Subject goals today", fontWeight = FontWeight.Bold)
                     withGoals.forEach { sub ->
                         val sec = sessions.filter { it.subjectId == sub.id && it.start.day() == today }.sumOf { it.durSec }
@@ -157,7 +156,7 @@ fun StatsScreen(vm: MainVM) {
 @Composable
 fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.padding(top = 12.dp)) {
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
         }

@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -50,18 +49,18 @@ fun SubjectsScreen(vm: MainVM) {
     Box(Modifier.fillMaxSize()) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Subjects", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Subjects", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             }
         }
         items(vm.subjects, key = { it.id }) { sub ->
             val total = vm.sessions.filter { it.subjectId == sub.id }.sumOf { it.durSec }
             Card(Modifier.fillMaxWidth().animateItemPlacement().clickable { editing = sub }) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     ColorDot(sub.color, 14)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(sub.name + if (sub.archived) " (archived)" else "", fontWeight = FontWeight.SemiBold)

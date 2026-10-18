@@ -1,43 +1,38 @@
 package com.studyflow.app
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,12 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
 
+/**
+ * Main screen. Never scrolls: every region is either fixed-height or takes the
+ * remaining space (weight), and the time numerals are sized from the space they
+ * actually get (and divided by font scale), so it fits any screen size,
+ * orientation and text-size setting.
+ */
 @Composable
 fun TimerScreen(vm: MainVM) {
     val t = vm.timer
@@ -79,25 +81,18 @@ fun TimerScreen(vm: MainVM) {
     var askNote by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
 
-    val ringTarget = when {
-        t.phase != 0 -> Color(0xFF43A047)
+    val barColorTarget = when {
+        t.phase != 0 -> MaterialTheme.colorScheme.onBackground
         s.subjectColorRing -> Color(subject.color)
         else -> MaterialTheme.colorScheme.primary
     }
-    val ringColor by animateColorAsState(ringTarget, animSpec(400), label = "ringColor")
-    val ringProg by animateFloatAsState(
+    val barColor = animateColorAsState(barColorTarget, animSpec(400), label = "barColor")
+    val barProgress = animateFloatAsState(
         progress,
         if (anims) tween(280, easing = LinearEasing) else snap(),
-        label = "ring",
+        label = "barProgress",
     )
-    val timeAlpha by animateFloatAsState(if (!t.running && !idle) 0.55f else 1f, animSpec(300), label = "timeAlpha")
-    val pulse = rememberInfiniteTransition(label = "pulse").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "pulseValue",
-    )
-    val halo = t.running && anims
+    val timeAlpha by animateFloatAsState(if (!t.running && !idle) 0.5f else 1f, animSpec(300), label = "timeAlpha")
 
     val phaseLabel = when {
         !pomo -> "Stopwatch"
@@ -111,152 +106,142 @@ fun TimerScreen(vm: MainVM) {
     val todayCount = vm.sessions.count { it.start.day() == today }
     val goalSec = s.dailyGoal * 60L
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Segmented(
-            options = listOf("Stopwatch", "Pomodoro"),
-            selected = t.mode,
-            enabled = idle,
-            onSelect = { tap(); vm.setMode(it) },
-        )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val fontScale = LocalDensity.current.fontScale
+        val landscape = maxWidth > maxHeight * 1.1f
+        val tight = !landscape && maxHeight.value < 560f * fontScale.coerceAtLeast(1f)
+        val extras = !landscape && !tight
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(vm.subjects.filter { !it.archived }, key = { it.id }) { sub ->
-                FilterChip(
-                    selected = sub.id == t.subjectId,
-                    enabled = !t.running,
-                    onClick = { vm.selectSubject(sub.id) },
-                    label = { Text(sub.name) },
-                    leadingIcon = { ColorDot(sub.color) },
-                )
-            }
+        val tabs: @Composable () -> Unit = {
+            ModeTabs(selected = t.mode, enabled = idle) { tap(); vm.setMode(it) }
         }
 
-        AnimatedVisibility(visible = idle && pomo && t.phase == 0, enter = enterT(), exit = exitT()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                listOf(15, 25, 45, 60).forEach { m ->
-                    FilterChip(
-                        selected = s.focusMin == m,
-                        onClick = { vm.update { it.copy(focusMin = m) } },
-                        label = { Text("$m min") },
-                    )
+        val subjects: @Composable () -> Unit = {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(vm.subjects.filter { !it.archived }, key = { it.id }) { sub ->
+                    PickerChip(
+                        label = sub.name,
+                        selected = sub.id == t.subjectId,
+                        enabled = !t.running,
+                        dot = sub.color,
+                    ) { vm.selectSubject(sub.id) }
                 }
             }
         }
 
-        Box(Modifier.size(280.dp).enter(1), contentAlignment = Alignment.Center) {
-            val track = MaterialTheme.colorScheme.surfaceVariant
-            Canvas(Modifier.fillMaxSize()) {
-                val sw = s.ringWidth.dp.toPx()
-                val tl = Offset(sw / 2, sw / 2)
-                val sz = Size(size.width - sw, size.height - sw)
-                if (halo) {
-                    drawCircle(
-                        ringColor.copy(alpha = 0.04f + 0.09f * pulse.value),
-                        radius = size.minDimension / 2 - sw,
-                    )
+        val time: @Composable (Modifier) -> Unit = { m ->
+            TimeBlock(
+                modifier = m,
+                phase = phaseLabel,
+                time = clock(shown, s.showSeconds),
+                timeAlpha = timeAlpha,
+                bar = s.barWidth,
+                color = barColor,
+                progress = barProgress,
+                left = if (pomo) "Elapsed ${clock(el, true)}" else subject.name,
+                right = if (pomo) "Target ${clock(target, true)}" else "",
+            )
+        }
+
+        val controls: @Composable () -> Unit = {
+            val src = remember { MutableInteractionSource() }
+            val label = if (t.running) "Pause" else if (idle) "Start" else "Resume"
+            val bg by animateColorAsState(
+                if (t.running) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.primary,
+                animSpec(250), label = "mainBg",
+            )
+            val fg by animateColorAsState(
+                if (t.running) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onPrimary,
+                animSpec(250), label = "mainFg",
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { tap(); if (t.running) vm.pause() else vm.start() },
+                    interactionSource = src,
+                    shape = MaterialTheme.shapes.small,
+                    colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = fg),
+                    modifier = Modifier.fillMaxWidth().height(if (tight) 52.dp else 60.dp).pressScale(src),
+                ) {
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = label,
+                        transitionSpec = { fadeSwap(anims) },
+                        label = "mainLabel",
+                    ) { l ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconLabel(if (l == "Pause") Ico.Pause else Ico.Play, l)
+                        }
+                    }
                 }
-                drawArc(track, 0f, 360f, false, topLeft = tl, size = sz, style = Stroke(sw, cap = StrokeCap.Round))
-                if (ringProg > 0f) {
-                    drawArc(ringColor, -90f, 360f * ringProg, false, topLeft = tl, size = sz, style = Stroke(sw, cap = StrokeCap.Round))
-                }
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    subject.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-                Text(
-                    clock(shown, s.showSeconds),
-                    style = TextStyle(fontSize = 52.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
-                    modifier = Modifier.alpha(timeAlpha),
-                )
-                AnimatedContent(
-                    targetState = phaseLabel,
-                    transitionSpec = { fadeSwap(anims) },
-                    label = "phase",
-                ) { label ->
-                    Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { tap(); vm.reset() },
+                        enabled = !idle,
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.weight(1f).height(44.dp),
+                    ) { Text("Reset") }
+                    if (t.phase == 0) {
+                        OutlinedButton(
+                            onClick = { tap(); if (s.askNote) askNote = true else vm.finish("") },
+                            enabled = !idle,
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                        ) { Text("Finish") }
+                    } else {
+                        OutlinedButton(
+                            onClick = { tap(); vm.skipBreak() },
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                        ) { Text("Skip break") }
+                    }
                 }
             }
         }
 
-        // Primary action: full width, thumb-reachable
-        val src = remember { MutableInteractionSource() }
-        val mainLabel = if (t.running) "Pause" else if (idle) "Start" else "Resume"
-        val btnBg by animateColorAsState(
-            if (t.running) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
-            animSpec(250), label = "btnBg",
-        )
-        val btnFg by animateColorAsState(
-            if (t.running) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
-            animSpec(250), label = "btnFg",
-        )
-        Button(
-            onClick = { tap(); if (t.running) vm.pause() else vm.start() },
-            interactionSource = src,
-            colors = ButtonDefaults.buttonColors(containerColor = btnBg, contentColor = btnFg),
-            modifier = Modifier.fillMaxWidth().height(64.dp).pressScale(src),
-        ) {
-            AnimatedContent(
-                targetState = mainLabel,
-                transitionSpec = { fadeSwap(anims) },
-                label = "mainBtn",
-            ) { l ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconLabel(if (l == "Pause") Ico.Pause else Ico.Play, l)
+        if (landscape) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(32.dp),
+            ) {
+                time(Modifier.weight(1.25f).fillMaxHeight())
+                Column(
+                    Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tabs()
+                        subjects()
+                    }
+                    controls()
                 }
             }
-        }
-
-        // Secondary actions: text only, evenly split
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(
-                onClick = { tap(); vm.reset() },
-                enabled = !idle,
-                modifier = Modifier.weight(1f),
-            ) { Text("Reset") }
-            if (t.phase == 0) {
-                OutlinedButton(
-                    onClick = { tap(); if (s.askNote) askNote = true else vm.finish("") },
-                    enabled = !idle,
-                    modifier = Modifier.weight(1f),
-                ) { Text("Finish") }
-            } else {
-                OutlinedButton(
-                    onClick = { tap(); vm.skipBreak() },
-                    modifier = Modifier.weight(1f),
-                ) { Text("Skip break") }
-            }
-        }
-
-        Card(Modifier.fillMaxWidth().enter(3)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text("Today", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    Text(
-                        if (goalSec > 0) "${fmtDur(todaySec)} / ${fmtDur(goalSec)}" else fmtDur(todaySec),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+        } else {
+            Column(Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp)) {
+                tabs()
+                Spacer(Modifier.height(if (tight) 8.dp else 16.dp))
+                subjects()
+                time(Modifier.weight(1f).fillMaxWidth())
+                if (extras) {
+                    AnimatedVisibility(visible = idle && pomo && t.phase == 0, enter = enterT(), exit = exitT()) {
+                        Row(
+                            Modifier.padding(bottom = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            MicroLabel("Length")
+                            Spacer(Modifier.width(4.dp))
+                            listOf(15, 25, 45, 60).forEach { m ->
+                                PickerChip(label = "$m", selected = s.focusMin == m) {
+                                    vm.update { it.copy(focusMin = m) }
+                                }
+                            }
+                            MicroLabel("min")
+                        }
+                    }
                 }
-                if (goalSec > 0) {
-                    AnimatedBar(
-                        (todaySec.toFloat() / goalSec).coerceIn(0f, 1f),
-                        MaterialTheme.colorScheme.primary,
-                        Modifier.fillMaxWidth().height(8.dp),
-                    )
-                }
-                Row(Modifier.fillMaxWidth()) {
-                    MiniStat("Sessions", todayCount.toString(), Modifier.weight(1f))
-                    MiniStat("Streak", "${streak(vm.sessions)} d", Modifier.weight(1f))
+                controls()
+                if (extras) {
+                    Spacer(Modifier.height(20.dp))
+                    DayStrip(todaySec, goalSec, todayCount, streak(vm.sessions))
                 }
             }
         }
@@ -281,9 +266,175 @@ fun TimerScreen(vm: MainVM) {
 }
 
 @Composable
-private fun MiniStat(label: String, value: String, modifier: Modifier = Modifier) {
+private fun MicroLabel(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        modifier = modifier,
+    )
+}
+
+/** Text tabs with a 2dp underline: the active state is typographic, not a pill. */
+@Composable
+private fun ModeTabs(selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        listOf("Stopwatch", "Pomodoro").forEachIndexed { i, label ->
+            val sel = i == selected
+            val c by animateColorAsState(
+                if (sel) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                animSpec(200), label = "tabText",
+            )
+            val u by animateColorAsState(
+                if (sel) MaterialTheme.colorScheme.primary else Color.Transparent,
+                animSpec(200), label = "tabLine",
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.titleMedium,
+                color = c,
+                modifier = Modifier
+                    .alpha(if (enabled || sel) 1f else 0.45f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = enabled,
+                    ) { onSelect(i) }
+                    .drawBehind {
+                        val h = 2.dp.toPx()
+                        drawRect(u, topLeft = Offset(0f, size.height - h), size = Size(size.width, h))
+                    }
+                    .padding(bottom = 8.dp),
+            )
+        }
+    }
+}
+
+/** Solid selected state (inverted), hairline outline otherwise. */
+@Composable
+private fun PickerChip(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    dot: Long? = null,
+    onClick: () -> Unit,
+) {
+    val bg by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent, animSpec(200), label = "chipBg",
+    )
+    val fg by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurfaceVariant,
+        animSpec(200), label = "chipFg",
+    )
+    val shape = MaterialTheme.shapes.small
+    Row(
+        Modifier
+            .alpha(if (enabled || selected) 1f else 0.45f)
+            .clip(shape)
+            .background(bg)
+            .border(1.dp, if (selected) Color.Transparent else MaterialTheme.colorScheme.outline, shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (dot != null) {
+            ColorDot(dot, 8)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1)
+    }
+}
+
+/** The hero: numerals sized to the space available, with a flat progress rule. */
+@Composable
+private fun TimeBlock(
+    modifier: Modifier,
+    phase: String,
+    time: String,
+    timeAlpha: Float,
+    bar: Int,
+    color: State<Color>,
+    progress: State<Float>,
+    left: String,
+    right: String,
+) {
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    BoxWithConstraints(modifier) {
+        val fs = LocalDensity.current.fontScale
+        val byWidth = maxWidth.value / (time.length * 0.56f) / fs
+        val byHeight = (maxHeight.value - 96f) / 1.15f / fs
+        val size = minOf(byWidth, byHeight, 132f).coerceAtLeast(24f)
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+            Text(
+                phase.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = color.value,
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                time,
+                style = TextStyle(
+                    fontSize = size.sp,
+                    lineHeight = (size * 1.05f).sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-size * 0.03f).sp,
+                    fontFeatureSettings = "tnum",
+                ),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.alpha(timeAlpha),
+            )
+            Spacer(Modifier.height(16.dp))
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .height(bar.dp)
+                    .drawBehind {
+                        drawRect(track)
+                        drawRect(color.value, size = Size(size.width * progress.value.coerceIn(0f, 1f), size.height))
+                    }
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text(
+                    left,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    right,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayStrip(todaySec: Long, goalSec: Long, count: Int, streak: Int) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .topRule(MaterialTheme.colorScheme.outline)
+            .padding(top = 12.dp),
+    ) {
+        StripCell("Today", fmtDur(todaySec), if (goalSec > 0) "of ${fmtDur(goalSec)}" else "", Modifier.weight(1.4f))
+        StripCell("Sessions", count.toString(), "", Modifier.weight(1f))
+        StripCell("Streak", "$streak d", "", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StripCell(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
     Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        MicroLabel(label)
+        Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
+        Text(sub.ifEmpty { " " }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }

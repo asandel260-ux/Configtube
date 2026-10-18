@@ -83,12 +83,13 @@ data class TimerState(
 data class Settings(
     // Appearance
     val themeMode: Int = 0, // 0 system, 1 light, 2 dark
-    val accent: Long = 0xFF5C6BC0,
+    val accent: Long = 0xFF2F54EB,
     val dynamic: Boolean = false,
     val amoled: Boolean = false,
     val fontScale: Float = 1f,
-    val corner: Int = 20,
+    val corner: Int = 4,
     val ringWidth: Int = 18,
+    val barWidth: Int = 4,
     val subjectColorRing: Boolean = true,
     // Timer
     val defaultMode: Int = 1,
@@ -117,7 +118,7 @@ data class Settings(
     fun toJson(): JSONObject = JSONObject()
         .put("themeMode", themeMode).put("accent", accent).put("dynamic", dynamic)
         .put("amoled", amoled).put("fontScale", fontScale.toDouble()).put("corner", corner)
-        .put("ringWidth", ringWidth).put("subjectColorRing", subjectColorRing)
+        .put("ringWidth", ringWidth).put("barWidth", barWidth).put("subjectColorRing", subjectColorRing)
         .put("defaultMode", defaultMode).put("focusMin", focusMin).put("shortMin", shortMin)
         .put("longMin", longMin).put("cycles", cycles).put("autoStart", autoStart)
         .put("minSaveSec", minSaveSec).put("dailyGoal", dailyGoal).put("weeklyGoal", weeklyGoal)
@@ -136,6 +137,7 @@ data class Settings(
                 fontScale = o.optDouble("fontScale", d.fontScale.toDouble()).toFloat(),
                 corner = o.optInt("corner", d.corner),
                 ringWidth = o.optInt("ringWidth", d.ringWidth),
+                barWidth = o.optInt("barWidth", d.barWidth).coerceIn(2, 16),
                 subjectColorRing = o.optBoolean("subjectColorRing", d.subjectColorRing),
                 defaultMode = o.optInt("defaultMode", d.defaultMode),
                 focusMin = o.optInt("focusMin", d.focusMin),

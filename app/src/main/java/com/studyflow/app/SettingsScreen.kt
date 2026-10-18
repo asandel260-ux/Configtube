@@ -69,7 +69,7 @@ fun SettingsScreen(vm: MainVM) {
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
-        Section("Appearance") {
+        Section("Appearance", startOpen = true) {
             Text("Theme")
             Row3(
                 listOf("System", "Light", "Dark"), s.themeMode,
@@ -104,6 +104,7 @@ fun SettingsScreen(vm: MainVM) {
         }
 
         Section("Behaviour") {
+            SwitchRow("Animations", "Transitions and motion throughout the app", s.animations) { v -> vm.update { it.copy(animations = v) } }
             SwitchRow("Vibrate when a phase ends", null, s.vibrate) { v -> vm.update { it.copy(vibrate = v) } }
             SwitchRow("Notification when a phase ends", "Works even if the app is closed", s.notify) { v -> vm.update { it.copy(notify = v) } }
             SwitchRow("Keep screen on while timing", null, s.keepOn) { v -> vm.update { it.copy(keepOn = v) } }

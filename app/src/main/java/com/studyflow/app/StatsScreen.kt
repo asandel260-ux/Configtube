@@ -77,7 +77,7 @@ fun StatsScreen(vm: MainVM) {
         }
 
         if (s.dailyGoal > 0 || s.weeklyGoal > 0) {
-            Card(Modifier.fillMaxWidth()) {
+            Card(Modifier.fillMaxWidth().enter(2)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Goals", fontWeight = FontWeight.Bold)
                     if (s.dailyGoal > 0) GoalBar("Daily", todaySec, s.dailyGoal * 60L)
@@ -86,7 +86,7 @@ fun StatsScreen(vm: MainVM) {
             }
         }
 
-        Card(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth().enter(4)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth()) {
                     Text(if (range == 7) "Last 7 days" else "Last 30 days", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -103,11 +103,7 @@ fun StatsScreen(vm: MainVM) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom,
                         ) {
-                            Box(
-                                Modifier.fillMaxWidth()
-                                    .height(maxOf(2f, 110f * sec / maxSec.toFloat()).dp)
-                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            )
+                            GrowBar(maxOf(2f, 110f * sec / maxSec.toFloat()), i)
                             val label = when {
                                 chartDays == 7 -> d.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(2)
                                 i % 5 == 0 -> d.dayOfMonth.toString()
@@ -126,7 +122,7 @@ fun StatsScreen(vm: MainVM) {
             StatTile("Longest", fmtDur(inRange.maxOfOrNull { it.durSec } ?: 0L), Modifier.weight(1f))
         }
 
-        Card(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth().enter(6)) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("By subject", fontWeight = FontWeight.Bold)
                 if (bySubject.isEmpty()) Text("Nothing tracked in this range.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -137,11 +133,7 @@ fun StatsScreen(vm: MainVM) {
                             Text(sub?.name ?: "Deleted subject", modifier = Modifier.weight(1f))
                             Text("${fmtDur(sec)} · ${if (total > 0) sec * 100 / total else 0}%")
                         }
-                        LinearProgressIndicator(
-                            progress = { if (total > 0) sec.toFloat() / total else 0f },
-                            color = Color(sub?.color ?: 0xFF888888),
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                        )
+                        AnimatedBar(if (total > 0) sec.toFloat() / total else 0f, Color(sub?.color ?: 0xFF888888), Modifier.fillMaxWidth().height(8.dp))
                     }
                 }
             }
@@ -149,7 +141,7 @@ fun StatsScreen(vm: MainVM) {
 
         val withGoals = vm.subjects.filter { it.dailyGoalMin > 0 && !it.archived }
         if (withGoals.isNotEmpty()) {
-            Card(Modifier.fillMaxWidth()) {
+            Card(Modifier.fillMaxWidth().enter(8)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Subject goals today", fontWeight = FontWeight.Bold)
                     withGoals.forEach { sub ->
@@ -179,10 +171,6 @@ fun GoalBar(label: String, sec: Long, goalSec: Long, color: Color = MaterialThem
             Text(label, modifier = Modifier.weight(1f))
             Text("${fmtDur(sec)} / ${fmtDur(goalSec)}", style = MaterialTheme.typography.bodySmall)
         }
-        LinearProgressIndicator(
-            progress = { (sec.toFloat() / goalSec).coerceIn(0f, 1f) },
-            color = color,
-            modifier = Modifier.fillMaxWidth().height(8.dp),
-        )
+        AnimatedBar((sec.toFloat() / goalSec).coerceIn(0f, 1f), color, Modifier.fillMaxWidth().height(8.dp))
     }
 }

@@ -112,6 +112,7 @@ data class Settings(
     // Tabs
     val showLog: Boolean = true,
     val showStats: Boolean = true,
+    val animations: Boolean = true,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("themeMode", themeMode).put("accent", accent).put("dynamic", dynamic)
@@ -122,7 +123,7 @@ data class Settings(
         .put("minSaveSec", minSaveSec).put("dailyGoal", dailyGoal).put("weeklyGoal", weeklyGoal)
         .put("vibrate", vibrate).put("notify", notify).put("keepOn", keepOn)
         .put("askNote", askNote).put("showSeconds", showSeconds).put("use24h", use24h)
-        .put("weekStart", weekStart).put("showLog", showLog).put("showStats", showStats)
+        .put("weekStart", weekStart).put("showLog", showLog).put("showStats", showStats).put("animations", animations)
 
     companion object {
         fun fromJson(o: JSONObject): Settings {
@@ -154,6 +155,7 @@ data class Settings(
                 weekStart = o.optInt("weekStart", d.weekStart),
                 showLog = o.optBoolean("showLog", d.showLog),
                 showStats = o.optBoolean("showStats", d.showStats),
+                animations = o.optBoolean("animations", d.animations),
             )
         }
     }

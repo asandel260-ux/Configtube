@@ -1,5 +1,39 @@
 package com.studyflow.app
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -128,15 +162,6 @@ fun SwitchRow(label: String, desc: String? = null, checked: Boolean, onChange: (
     }
 }
 
-@Composable
-fun Section(title: String, content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            content()
-        }
-    }
-}
 
 @Composable
 fun ColorDot(color: Long, size: Int = 10) {
@@ -148,4 +173,164 @@ fun IconLabel(icon: ImageVector, text: String) {
     Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
     Spacer(Modifier.width(8.dp))
     Text(text)
+}
+
+// ---------------------------------------------------------------------------
+// Motion helpers (all respect the "Animations" setting)
+// ---------------------------------------------------------------------------
+
+val LocalAnimations = compositionLocalOf { true }
+
+@Composable
+fun <T> animSpec(ms: Int = 300, easing: Easing = FastOutSlowInEasing): FiniteAnimationSpec<T> =
+    if (LocalAnimations.current) tween(ms, easing = easing) else snap()
+
+@Composable
+fun enterT(): EnterTransition =
+    if (LocalAnimations.current) expandVertically() + fadeIn() else EnterTransition.None
+
+@Composable
+fun exitT(): ExitTransition =
+    if (LocalAnimations.current) shrinkVertically() + fadeOut() else ExitTransition.None
+
+fun fadeSwap(anims: Boolean): ContentTransform =
+    if (anims) fadeIn(tween(220)) togetherWith fadeOut(tween(160))
+    else EnterTransition.None togetherWith ExitTransition.None
+
+/** Fade + rise on first appearance, staggered by [index]. */
+@Composable
+fun Modifier.enter(index: Int): Modifier {
+    val anims = LocalAnimations.current
+    var shown by remember { mutableStateOf(!anims) }
+    LaunchedEffect(Unit) {
+        if (!shown) delay(index * 45L)
+        shown = true
+    }
+    val a by animateFloatAsState(if (shown) 1f else 0f, animSpec(340), label = "enterA")
+    val y by animateFloatAsState(if (shown) 0f else 28f, animSpec(340), label = "enterY")
+    return this.graphicsLayer { alpha = a; translationY = y }
+}
+
+/** Slight scale-down while pressed. */
+fun Modifier.pressScale(source: InteractionSource, to: Float = 0.97f): Modifier = composed {
+    val anims = LocalAnimations.current
+    val pressed by source.collectIsPressedAsState()
+    val sc by animateFloatAsState(
+        if (pressed && anims) to else 1f,
+        spring(stiffness = Spring.StiffnessMedium),
+        label = "press",
+    )
+    this.graphicsLayer { scaleX = sc; scaleY = sc }
+}
+
+@Composable
+fun AnimatedBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
+    val anims = LocalAnimations.current
+    var go by remember { mutableStateOf(!anims) }
+    LaunchedEffect(Unit) { go = true }
+    val p by animateFloatAsState(if (go) progress else 0f, animSpec(700), label = "bar")
+    LinearProgressIndicator(progress = { p }, color = color, modifier = modifier)
+}
+
+@Composable
+fun GrowBar(target: Float, index: Int) {
+    val anims = LocalAnimations.current
+    var go by remember { mutableStateOf(!anims) }
+    LaunchedEffect(Unit) {
+        if (!go) delay(index * 18L)
+        go = true
+    }
+    val h by animateFloatAsState(if (go) target else 2f, animSpec(500), label = "grow")
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(h.dp)
+            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+@Composable
+fun Segmented(options: List<String>, selected: Int, enabled: Boolean = true, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier
+            .alpha(if (enabled) 1f else 0.5f)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEachIndexed { i, label ->
+            val sel = i == selected
+            val bg by animateColorAsState(
+                if (sel) MaterialTheme.colorScheme.primary else Color.Transparent, animSpec(220), label = "segBg"
+            )
+            val fg by animateColorAsState(
+                if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animSpec(220), label = "segFg"
+            )
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(bg)
+                    .clickable(enabled = enabled) { onSelect(i) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, color = fg, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal)
+            }
+        }
+    }
+}
+
+/** Primary floating action: pops in, sits bottom-right. */
+@Composable
+fun Fab(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val anims = LocalAnimations.current
+    var shown by remember { mutableStateOf(!anims) }
+    LaunchedEffect(Unit) { shown = true }
+    AnimatedVisibility(
+        visible = shown,
+        modifier = modifier.padding(16.dp),
+        enter = if (anims) scaleIn(tween(260)) + fadeIn(tween(260)) else EnterTransition.None,
+    ) {
+        ExtendedFloatingActionButton(
+            onClick = onClick,
+            icon = { Icon(Ico.Plus, contentDescription = null, modifier = Modifier.size(20.dp)) },
+            text = { Text(text) },
+        )
+    }
+}
+
+/** Collapsible card section. */
+@Composable
+fun Section(title: String, startOpen: Boolean = false, content: @Composable () -> Unit) {
+    var open by rememberSaveable(title) { mutableStateOf(startOpen) }
+    val rot by animateFloatAsState(if (open) 180f else 0f, animSpec(250), label = "chevron")
+    Card(Modifier.fillMaxWidth()) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth().clickable { open = !open }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Icon(
+                    Ico.ChevronDown,
+                    contentDescription = if (open) "Collapse" else "Expand",
+                    modifier = Modifier.size(20.dp).rotate(rot),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            AnimatedVisibility(visible = open, enter = enterT(), exit = exitT()) {
+                Column(
+                    Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) { content() }
+            }
+        }
+    }
 }

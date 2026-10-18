@@ -19,6 +19,7 @@ const ICONS = {
   Pause: ["pause"],
   Download: ["download"],
   Upload: ["upload"],
+  ChevronDown: ["chevron-down"],
 };
 
 const attrs = (s) => Object.fromEntries([...s.matchAll(/([\w-]+)="([^"]*)"/g)].map((m) => [m[1], m[2]]));

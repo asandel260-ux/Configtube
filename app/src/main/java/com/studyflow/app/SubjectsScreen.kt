@@ -1,5 +1,6 @@
 package com.studyflow.app
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,25 +41,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SubjectsScreen(vm: MainVM) {
     var editing by remember { mutableStateOf<Subject?>(null) }
     var creating by remember { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Subjects", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(onClick = { creating = true }) { IconLabel(Ico.Plus, "New subject") }
             }
         }
         items(vm.subjects, key = { it.id }) { sub ->
             val total = vm.sessions.filter { it.subjectId == sub.id }.sumOf { it.durSec }
-            Card(Modifier.fillMaxWidth().clickable { editing = sub }) {
+            Card(Modifier.fillMaxWidth().animateItemPlacement().clickable { editing = sub }) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     ColorDot(sub.color, 14)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
@@ -73,6 +75,8 @@ fun SubjectsScreen(vm: MainVM) {
                 }
             }
         }
+    }
+    Fab("New subject", Modifier.align(Alignment.BottomEnd)) { creating = true }
     }
 
     if (creating) {

@@ -1,5 +1,6 @@
 package com.studyflow.app
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import android.app.DatePickerDialog
@@ -50,6 +51,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LogScreen(vm: MainVM) {
     var showAdd by remember { mutableStateOf(false) }
@@ -58,15 +60,15 @@ fun LogScreen(vm: MainVM) {
     val dayFmt = DateTimeFormatter.ofPattern("EEE, d MMM yyyy")
     val groups = vm.sessions.groupBy { it.start.day() }.entries.sortedByDescending { it.key.toEpochDay() }
 
+    Box(Modifier.fillMaxSize()) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Study log", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                Button(onClick = { showAdd = true }) { IconLabel(Ico.Plus, "Add session") }
             }
         }
         if (groups.isEmpty()) {
@@ -74,14 +76,14 @@ fun LogScreen(vm: MainVM) {
         }
         groups.forEach { (day, list) ->
             item(key = "h$day") {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Row(Modifier.fillMaxWidth().animateItemPlacement().padding(top = 8.dp)) {
                     Text(day.format(dayFmt), fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                     Text(fmtDur(list.sumOf { it.durSec }), color = MaterialTheme.colorScheme.primary)
                 }
             }
             items(list, key = { it.id }) { ses ->
                 val sub = vm.subjects.firstOrNull { it.id == ses.subjectId }
-                Card(Modifier.fillMaxWidth()) {
+                Card(Modifier.fillMaxWidth().animateItemPlacement()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         ColorDot(sub?.color ?: 0xFF888888, 12)
                         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -101,6 +103,8 @@ fun LogScreen(vm: MainVM) {
                 }
             }
         }
+    }
+    Fab("Add session", Modifier.align(Alignment.BottomEnd)) { showAdd = true }
     }
 
     if (showAdd) AddSessionDialog(vm) { showAdd = false }

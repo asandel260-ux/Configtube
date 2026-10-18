@@ -1,5 +1,16 @@
 package com.studyflow.app
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.foundation.layout.size
@@ -47,8 +58,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val vm: MainVM = viewModel()
             StudyTheme(vm.settings) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    App(vm)
+                CompositionLocalProvider(LocalAnimations provides vm.settings.animations) {
+                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                        App(vm)
+                    }
                 }
             }
         }
@@ -130,12 +143,29 @@ fun App(vm: MainVM) {
         },
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
-            when (tab) {
-                Tab.Timer -> TimerScreen(vm)
-                Tab.Log -> LogScreen(vm)
-                Tab.Stats -> StatsScreen(vm)
-                Tab.Subjects -> SubjectsScreen(vm)
-                Tab.Settings -> SettingsScreen(vm)
+            val anims = LocalAnimations.current
+            AnimatedContent(
+                targetState = tab,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    if (!anims) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        val dir = if (tabs.indexOf(targetState) > tabs.indexOf(initialState)) 1 else -1
+                        (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { full -> dir * full / 8 } +
+                            fadeIn(tween(300))) togetherWith
+                            (slideOutHorizontally(tween(200)) { full -> -dir * full / 8 } + fadeOut(tween(160)))
+                    }
+                },
+                label = "tabs",
+            ) { t ->
+                when (t) {
+                    Tab.Timer -> TimerScreen(vm)
+                    Tab.Log -> LogScreen(vm)
+                    Tab.Stats -> StatsScreen(vm)
+                    Tab.Subjects -> SubjectsScreen(vm)
+                    Tab.Settings -> SettingsScreen(vm)
+                }
             }
         }
     }

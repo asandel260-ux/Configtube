@@ -145,8 +145,10 @@ class StatsTest {
         val dec = StatsCodec.decodeMonth(evil)!!
         assertFalse(dec.containsKey(40))
         assertEquals(86400L, dec[3]!!.sec)
-        assertEquals(1, dec[3]!!.sessions.size) // only the plausible session survives
-        assertEquals(60, dec[3]!!.sessions[0].durSec)
+        assertEquals(2, dec[3]!!.sessions.size) // the absurd 99999999 s session is dropped
+        assertEquals(1439, dec[3]!!.sessions[0].startMin) // out-of-range start time is clamped
+        assertEquals(1, dec[3]!!.sessions[0].mode)
+        assertEquals(60, dec[3]!!.sessions[1].durSec)
     }
 
     @Test

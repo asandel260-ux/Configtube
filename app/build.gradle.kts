@@ -33,6 +33,11 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+    packaging {
+        resources {
+            excludes += setOf("META-INF/versions/**", "META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/AL2.0", "META-INF/LGPL2.1")
+        }
+    }
 }
 
 dependencies {
@@ -44,4 +49,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }

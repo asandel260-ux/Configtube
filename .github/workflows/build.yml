@@ -52,25 +52,20 @@ jobs:
           done
           ls -la app/src/main/res/font
 
+      - name: Unit tests (protocol core)
+        run: |
+          set +e
+          gradle testDebugUnitTest --no-daemon --console=plain > test.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then python3 scripts/annotate.py test.log "Unit test errors"; fi
+          exit $code
+
       - name: Build debug APK
         run: |
           set +e
           gradle assembleDebug --no-daemon --console=plain > build.log 2>&1
           code=$?
-          if [ $code -ne 0 ]; then
-            python3 - <<'PY'
-          import re
-          lines = open('build.log', errors='replace').read().splitlines()
-          out = []
-          for i, l in enumerate(lines):
-              if l.startswith('e: ') or 'What went wrong' in l or l.startswith('Execution failed'):
-                  out.extend(lines[i:i+4])
-          if not out:
-              out = lines[-40:]
-          msg = '\n'.join(out[:60]).replace('%', '%25').replace('\r', '').replace('\n', '%0A')
-          print('::error title=Build errors::' + msg)
-          PY
-          fi
+          if [ $code -ne 0 ]; then python3 scripts/annotate.py build.log "Build errors"; fi
           exit $code
 
       - uses: actions/upload-artifact@v4

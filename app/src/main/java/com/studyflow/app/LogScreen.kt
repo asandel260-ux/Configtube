@@ -206,7 +206,7 @@ fun AddSessionDialog(vm: MainVM, onDismiss: () -> Unit) {
                 val m = mins.toLongOrNull() ?: 0L
                 if (m > 0) {
                     val st = date.atTime(time).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    vm.addSession(subj, st, m * 60, note, 0)
+                    vm.addSession(subj, st, m * 60, note, 0, manual = true)
                     onDismiss()
                 }
             }) { Text("Add") }

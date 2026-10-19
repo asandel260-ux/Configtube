@@ -16,9 +16,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneId
+import com.studyflow.app.p2p.LiveService
+import com.studyflow.app.p2p.RawSession
+import com.studyflow.app.p2p.Social
 
 class MainVM(private val app: Application) : AndroidViewModel(app) {
     private val store = Store(app)
+    val social: Social = Social.get(app)
 
     var settings by mutableStateOf(store.loadSettings()); private set
     var subjects by mutableStateOf(store.loadSubjects()); private set
@@ -28,6 +32,21 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
 
     init {
         ensureSubject()
+        syncSocial()
+    }
+
+    private fun syncSocial() {
+        val names = subjects.associate { it.id to it.name }
+        social.sessionsChanged(sessions.map { RawSession(it.start, it.durSec, names[it.subjectId] ?: "", it.mode, it.manual) })
+        liveSync(timer)
+    }
+
+    private fun liveSync(t: TimerState) {
+        val on = t.running && t.phase == 0
+        val name = subjects.firstOrNull { it.id == t.subjectId }?.name ?: ""
+        social.liveChanged(on, name, t.segStart - t.baseMs, t.mode)
+        val c = social.cfg
+        if (on && c.share && c.keepLive) LiveService.start(app) else LiveService.stop(app)
     }
 
     private fun ensureSubject() {
@@ -59,6 +78,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         timer = t
         store.saveTimer(t)
         schedule(t)
+        liveSync(t)
     }
 
     private fun alarmIntent(phase: Int): PendingIntent {
@@ -145,16 +165,18 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
 
     // ---------- Sessions ----------
 
-    fun addSession(subjectId: String, start: Long, durSec: Long, note: String, mode: Int) {
+    fun addSession(subjectId: String, start: Long, durSec: Long, note: String, mode: Int, manual: Boolean = false) {
         if (durSec <= 0) return
-        sessions = (sessions + Session(subjectId = subjectId, start = start, durSec = durSec, note = note, mode = mode))
+        sessions = (sessions + Session(subjectId = subjectId, start = start, durSec = durSec, note = note, mode = mode, manual = manual))
             .sortedByDescending { it.start }
         store.saveSessions(sessions)
+        syncSocial()
     }
 
     fun deleteSession(id: String) {
         sessions = sessions.filterNot { it.id == id }
         store.saveSessions(sessions)
+        syncSocial()
     }
 
     // ---------- Subjects ----------
@@ -163,6 +185,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         subjects = if (subjects.any { it.id == s.id }) subjects.map { if (it.id == s.id) s else it } else subjects + s
         store.saveSubjects(subjects)
         ensureSubject()
+        syncSocial()
     }
 
     fun deleteSubject(id: String) {
@@ -170,6 +193,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         subjects = subjects.filterNot { it.id == id }
         store.saveSubjects(subjects)
         ensureSubject()
+        syncSocial()
     }
 
     // ---------- Settings ----------
@@ -213,6 +237,7 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         store.saveSessions(sessions)
         store.saveSettings(settings)
         ensureSubject()
+        syncSocial()
         true
     } catch (e: Exception) {
         false
@@ -227,5 +252,6 @@ class MainVM(private val app: Application) : AndroidViewModel(app) {
         store.saveTimer(timer)
         schedule(timer)
         ensureSubject()
+        syncSocial()
     }
 }

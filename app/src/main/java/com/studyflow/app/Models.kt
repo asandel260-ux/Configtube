@@ -36,10 +36,11 @@ data class Session(
     val durSec: Long,
     val note: String = "",
     val mode: Int = 0, // 0 = stopwatch / manual, 1 = pomodoro
+    val manual: Boolean = false, // typed in by hand rather than timed
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("subjectId", subjectId).put("start", start)
-        .put("durSec", durSec).put("note", note).put("mode", mode)
+        .put("durSec", durSec).put("note", note).put("mode", mode).put("manual", manual)
 
     companion object {
         fun fromJson(o: JSONObject) = Session(
@@ -49,6 +50,7 @@ data class Session(
             durSec = o.getLong("durSec"),
             note = o.optString("note", ""),
             mode = o.optInt("mode", 0),
+            manual = o.optBoolean("manual", false),
         )
     }
 }

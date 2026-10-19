@@ -204,7 +204,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
         prefs.edit().putString("groups", a.toString()).apply()
     }
 
-    private fun setJoined(l: List<JoinedGroup>) {
+    private fun storeJoined(l: List<JoinedGroup>) {
         joinedBox = l
         saveGroups(l)
         main.post { joined = l }
@@ -637,7 +637,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
         }
         // groups that were closed by their founder disappear from the local list
         val closed = joinedBox.filter { jg -> groups[jg.gref]?.def?.closed == true }
-        if (closed.isNotEmpty()) setJoined(joinedBox.filterNot { jg -> closed.any { it.gref == jg.gref } })
+        if (closed.isNotEmpty()) storeJoined(joinedBox.filterNot { jg -> closed.any { it.gref == jg.gref } })
         sealMembers()
         if (statsCache.size > 600) statsCache.clear()
     }
@@ -843,7 +843,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
             emptyList(), "", cfgBox.relays.take(2), false, nowSec(),
         )
         val inv = Invite(gref, secretHex, def.relays)
-        setJoined(joinedBox + JoinedGroup(gref, secretHex))
+        storeJoined(joinedBox + JoinedGroup(gref, secretHex))
         ex.execute {
             publishDef(def, secretHex?.let { Seal.key(it) })
             publishProfile()
@@ -866,7 +866,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
     fun joinGroup(inv: Invite) {
         if (joinedBox.size >= 8 && joinedBox.none { it.gref == inv.gref }) return
         if (cfgBox.name.isBlank()) return
-        if (joinedBox.none { it.gref == inv.gref }) setJoined(joinedBox + JoinedGroup(inv.gref, inv.secret))
+        if (joinedBox.none { it.gref == inv.gref }) storeJoined(joinedBox + JoinedGroup(inv.gref, inv.secret))
         ex.execute {
             peeks.remove(inv.gref)
             for (r in inv.relays) if (r !in pendingHints) pendingHints.add(r)
@@ -886,7 +886,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
 
     fun leaveGroup(gref: String) {
         val key = joinedBox.firstOrNull { it.gref == gref }?.secret?.let { Seal.key(it) }
-        setJoined(joinedBox.filterNot { it.gref == gref })
+        storeJoined(joinedBox.filterNot { it.gref == gref })
         ex.execute {
             if (GRef.founder(gref) != me) {
                 publish(
@@ -902,7 +902,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
 
     /** Removes the group from this phone only (used for groups we were removed from). */
     fun forgetGroup(gref: String) {
-        setJoined(joinedBox.filterNot { it.gref == gref })
+        storeJoined(joinedBox.filterNot { it.gref == gref })
         ex.execute {
             applySubs()
             scheduleRebuild()
@@ -932,7 +932,7 @@ class Social private constructor(ctx: Context) : RelayPool.Listener {
 
     fun deleteGroup(gref: String) {
         editGroup(gref) { it.copy(closed = true) }
-        ex.schedule({ setJoined(joinedBox.filterNot { it.gref == gref }) }, 1, TimeUnit.SECONDS)
+        ex.schedule({ storeJoined(joinedBox.filterNot { it.gref == gref }) }, 1, TimeUnit.SECONDS)
     }
 
     /** Moderation: ban / unban / mute / unmute / kick / ok / deny for one person. */

@@ -45,37 +45,52 @@ import androidx.compose.ui.unit.sp
 fun SubjectsScreen(vm: MainVM) {
     var editing by remember { mutableStateOf<Subject?>(null) }
     var creating by remember { mutableStateOf(false) }
+    val active = vm.subjects.count { !it.archived }
+    val rule = MaterialTheme.colorScheme.outlineVariant
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-    ) {
-        item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Subjects", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 96.dp),
+        ) {
+            item {
+                ScreenHeader("Subjects", "$active active. Tap one to edit.", Modifier.padding(bottom = 16.dp))
             }
-        }
-        items(vm.subjects, key = { it.id }) { sub ->
-            val total = vm.sessions.filter { it.subjectId == sub.id }.sumOf { it.durSec }
-            Card(Modifier.fillMaxWidth().animateItemPlacement().clickable { editing = sub }) {
-                Row(Modifier.padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    ColorDot(sub.color, 14)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text(sub.name + if (sub.archived) " (archived)" else "", fontWeight = FontWeight.SemiBold)
+            items(vm.subjects, key = { it.id }) { sub ->
+                val total = vm.sessions.filter { it.subjectId == sub.id }.sumOf { it.durSec }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .animateItemPlacement()
+                        .topRule(rule)
+                        .clickable { editing = sub }
+                        .padding(vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ColorDot(sub.color, 12)
+                    Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                         Text(
-                            "Total ${fmtDur(total)}" + if (sub.dailyGoalMin > 0) " · goal ${sub.dailyGoalMin} min/day" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            sub.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            color = if (sub.archived) muted else MaterialTheme.colorScheme.onBackground,
                         )
+                        val meta = buildList {
+                            if (sub.archived) add("Archived")
+                            if (sub.dailyGoalMin > 0) add("Goal ${sub.dailyGoalMin} min/day")
+                        }.joinToString(" · ")
+                        if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = muted)
                     }
-                    Icon(Ico.Pencil, "Edit subject", Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(fmtDur(total), style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        Ico.Pencil, "Edit subject",
+                        Modifier.padding(start = 16.dp).size(18.dp), tint = muted,
+                    )
                 }
             }
         }
-    }
-    Fab("New subject", Modifier.align(Alignment.BottomEnd)) { creating = true }
+        Fab("New subject", Modifier.align(Alignment.BottomEnd)) { creating = true }
     }
 
     if (creating) {

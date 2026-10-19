@@ -33,6 +33,25 @@ jobs:
           npm install lucide-static
           node "$GITHUB_WORKSPACE/scripts/gen-icons.mjs" /tmp/lu/node_modules/lucide-static/icons "$GITHUB_WORKSPACE/app/src/main/java/com/studyflow/app/Icons.kt"
 
+      - name: Fetch IBM Plex Sans (OFL)
+        run: |
+          mkdir -p app/src/main/res/font
+          for w in Light Regular Medium SemiBold; do
+            lower=$(echo "$w" | tr 'A-Z' 'a-z')
+            out="app/src/main/res/font/plex_sans_${lower}.ttf"
+            for base in \
+              "https://raw.githubusercontent.com/IBM/plex/master/packages/plex-sans/fonts/complete/ttf" \
+              "https://cdn.jsdelivr.net/gh/IBM/plex@master/packages/plex-sans/fonts/complete/ttf"; do
+              curl -fsSL --retry 2 "$base/IBMPlexSans-$w.ttf" -o "$out" || true
+              [ -f "$out" ] && [ "$(stat -c%s "$out")" -gt 50000 ] && break
+            done
+            if [ ! -f "$out" ] || [ "$(stat -c%s "$out")" -le 50000 ]; then
+              echo "::error title=Font download failed::IBMPlexSans-$w.ttf could not be downloaded"
+              exit 1
+            fi
+          done
+          ls -la app/src/main/res/font
+
       - name: Build debug APK
         run: |
           set +e
@@ -67,5 +86,6 @@ jobs:
           git config user.email "actions@github.com"
           git add -f dist/StudyFlow-debug.apk
           git add -f app/src/main/java/com/studyflow/app/Icons.kt
+          git add -f app/src/main/res/font
           git commit -m "Add built APK [skip ci]" || exit 0
           git push

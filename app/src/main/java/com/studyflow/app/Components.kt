@@ -359,3 +359,18 @@ fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> U
     val line = MaterialTheme.colorScheme.outline
     Column(modifier.topRule(line), content = content)
 }
+
+@Composable
+fun ScreenHeader(title: String, subtitle: String? = null, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(title, style = MaterialTheme.typography.headlineMedium)
+        if (subtitle != null) {
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}

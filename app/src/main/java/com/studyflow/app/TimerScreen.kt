@@ -1,18 +1,22 @@
 package com.studyflow.app
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,20 +24,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,20 +52,24 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalDate
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.sin
 
 /**
- * Main screen. Never scrolls: every region is either fixed-height or takes the
- * remaining space (weight), and the time numerals are sized from the space they
- * actually get (and divided by font scale), so it fits any screen size,
- * orientation and text-size setting.
+ * Main screen. Never scrolls. Centre piece is an instrument-style dial:
+ * 60 ticks around a circle. Pomodoro: ticks fill as the session progresses.
+ * Stopwatch: a sweep hand with a fading trail marks the current second.
  */
 @Composable
 fun TimerScreen(vm: MainVM) {
@@ -68,8 +79,6 @@ fun TimerScreen(vm: MainVM) {
     val target = vm.targetMs()
     val pomo = t.mode == 1
     val shown = if (pomo) (target - el).coerceAtLeast(0) else el
-    val progress = if (pomo && target > 0) (el.toFloat() / target).coerceIn(0f, 1f)
-    else ((el % 3_600_000L) / 3_600_000f)
     val subject = vm.subjects.firstOrNull { it.id == t.subjectId } ?: vm.subjects.first()
     val idle = !t.running && t.baseMs == 0L
     val anims = LocalAnimations.current
@@ -81,24 +90,30 @@ fun TimerScreen(vm: MainVM) {
     var askNote by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
 
-    val barColorTarget = when {
+    // Monotonic value (fraction of session, or minutes elapsed) animated forward only,
+    // so the sweep never spins backwards across a wrap.
+    val unwrapped = if (pomo) (if (target > 0) (el.toFloat() / target).coerceIn(0f, 1f) else 0f) else el / 60000f
+    var last by remember { mutableFloatStateOf(unwrapped) }
+    val forward = unwrapped >= last
+    SideEffect { last = unwrapped }
+    val head = animateFloatAsState(
+        unwrapped,
+        if (anims && forward) tween(280, easing = LinearEasing) else snap(),
+        label = "head",
+    )
+    val accentTarget = when {
         t.phase != 0 -> MaterialTheme.colorScheme.onBackground
         s.subjectColorRing -> Color(subject.color)
         else -> MaterialTheme.colorScheme.primary
     }
-    val barColor = animateColorAsState(barColorTarget, animSpec(400), label = "barColor")
-    val barProgress = animateFloatAsState(
-        progress,
-        if (anims) tween(280, easing = LinearEasing) else snap(),
-        label = "barProgress",
-    )
+    val accent = animateColorAsState(accentTarget, animSpec(400), label = "accent")
     val timeAlpha by animateFloatAsState(if (!t.running && !idle) 0.5f else 1f, animSpec(300), label = "timeAlpha")
 
-    val phaseLabel = when {
-        !pomo -> "Stopwatch"
-        t.phase == 0 -> "Focus · round ${t.cycles % s.cycles + 1} of ${s.cycles}"
+    val caption = when {
+        !pomo -> "Elapsed"
         t.phase == 1 -> "Short break"
-        else -> "Long break"
+        t.phase == 2 -> "Long break"
+        else -> "of ${clock(target, true)}"
     }
 
     val today = LocalDate.now()
@@ -109,7 +124,7 @@ fun TimerScreen(vm: MainVM) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val fontScale = LocalDensity.current.fontScale
         val landscape = maxWidth > maxHeight * 1.1f
-        val tight = !landscape && maxHeight.value < 560f * fontScale.coerceAtLeast(1f)
+        val tight = !landscape && maxHeight.value < 600f * fontScale.coerceAtLeast(1f)
         val extras = !landscape && !tight
 
         val tabs: @Composable () -> Unit = {
@@ -117,7 +132,10 @@ fun TimerScreen(vm: MainVM) {
         }
 
         val subjects: @Composable () -> Unit = {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) {
                 items(vm.subjects.filter { !it.archived }, key = { it.id }) { sub ->
                     PickerChip(
                         label = sub.name,
@@ -129,17 +147,18 @@ fun TimerScreen(vm: MainVM) {
             }
         }
 
-        val time: @Composable (Modifier) -> Unit = { m ->
-            TimeBlock(
+        val dial: @Composable (Modifier) -> Unit = { m ->
+            Dial(
                 modifier = m,
-                phase = phaseLabel,
+                head = head,
+                sweep = !pomo,
+                active = !idle,
+                color = accent,
+                subject = subject.name,
+                subjectColor = subject.color,
                 time = clock(shown, s.showSeconds),
                 timeAlpha = timeAlpha,
-                bar = s.barWidth,
-                color = barColor,
-                progress = barProgress,
-                left = if (pomo) "Elapsed ${clock(el, true)}" else subject.name,
-                right = if (pomo) "Target ${clock(target, true)}" else "",
+                caption = caption,
             )
         }
 
@@ -154,15 +173,25 @@ fun TimerScreen(vm: MainVM) {
                 if (t.running) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onPrimary,
                 animSpec(250), label = "mainFg",
             )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val textBtn = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
+            val pad = PaddingValues(horizontal = 8.dp)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    TextButton(
+                        onClick = { tap(); vm.reset() },
+                        enabled = !idle,
+                        colors = textBtn,
+                        contentPadding = pad,
+                    ) { Text("Reset") }
+                }
                 Button(
                     onClick = { tap(); if (t.running) vm.pause() else vm.start() },
                     interactionSource = src,
                     shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = fg),
-                    modifier = Modifier.fillMaxWidth().height(if (tight) 52.dp else 60.dp).pressScale(src),
+                    modifier = Modifier.width(136.dp).height(if (tight) 48.dp else 56.dp).pressScale(src),
                 ) {
-                    androidx.compose.animation.AnimatedContent(
+                    AnimatedContent(
                         targetState = label,
                         transitionSpec = { fadeSwap(anims) },
                         label = "mainLabel",
@@ -172,26 +201,20 @@ fun TimerScreen(vm: MainVM) {
                         }
                     }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { tap(); vm.reset() },
-                        enabled = !idle,
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.weight(1f).height(44.dp),
-                    ) { Text("Reset") }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                     if (t.phase == 0) {
-                        OutlinedButton(
+                        TextButton(
                             onClick = { tap(); if (s.askNote) askNote = true else vm.finish("") },
                             enabled = !idle,
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.weight(1f).height(44.dp),
+                            colors = textBtn,
+                            contentPadding = pad,
                         ) { Text("Finish") }
                     } else {
-                        OutlinedButton(
+                        TextButton(
                             onClick = { tap(); vm.skipBreak() },
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.weight(1f).height(44.dp),
-                        ) { Text("Skip break") }
+                            colors = textBtn,
+                            contentPadding = pad,
+                        ) { Text("Skip") }
                     }
                 }
             }
@@ -200,41 +223,39 @@ fun TimerScreen(vm: MainVM) {
         if (landscape) {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(32.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                time(Modifier.weight(1.25f).fillMaxHeight())
+                dial(Modifier.weight(1f).fillMaxHeight())
                 Column(
                     Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        tabs()
-                        subjects()
-                    }
+                    tabs()
+                    Spacer(Modifier.height(16.dp))
+                    subjects()
+                    Spacer(Modifier.height(24.dp))
                     controls()
                 }
             }
         } else {
             Column(Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp)) {
-                tabs()
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { tabs() }
                 Spacer(Modifier.height(if (tight) 8.dp else 16.dp))
                 subjects()
-                time(Modifier.weight(1f).fillMaxWidth())
+                dial(Modifier.weight(1f).fillMaxWidth().padding(vertical = 12.dp))
                 if (extras) {
                     AnimatedVisibility(visible = idle && pomo && t.phase == 0, enter = enterT(), exit = exitT()) {
                         Row(
-                            Modifier.padding(bottom = 16.dp),
+                            Modifier.fillMaxWidth().padding(bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                         ) {
-                            MicroLabel("Length")
-                            Spacer(Modifier.width(4.dp))
                             listOf(15, 25, 45, 60).forEach { m ->
-                                PickerChip(label = "$m", selected = s.focusMin == m) {
+                                PickerChip(label = "$m min", selected = s.focusMin == m) {
                                     vm.update { it.copy(focusMin = m) }
                                 }
                             }
-                            MicroLabel("min")
                         }
                     }
                 }
@@ -276,10 +297,10 @@ private fun MicroLabel(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Text tabs with a 2dp underline: the active state is typographic, not a pill. */
+/** Centered text tabs; the active state is an underline, not a pill. */
 @Composable
 private fun ModeTabs(selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
         listOf("Stopwatch", "Pomodoro").forEachIndexed { i, label ->
             val sel = i == selected
             val c by animateColorAsState(
@@ -311,7 +332,7 @@ private fun ModeTabs(selected: Int, enabled: Boolean, onSelect: (Int) -> Unit) {
     }
 }
 
-/** Solid selected state (inverted), hairline outline otherwise. */
+/** Solid inverted when selected, hairline outline otherwise. */
 @Composable
 private fun PickerChip(
     label: String,
@@ -346,71 +367,99 @@ private fun PickerChip(
     }
 }
 
-/** The hero: numerals sized to the space available, with a flat progress rule. */
 @Composable
-private fun TimeBlock(
+private fun Dial(
     modifier: Modifier,
-    phase: String,
+    head: State<Float>,
+    sweep: Boolean,
+    active: Boolean,
+    color: State<Color>,
+    subject: String,
+    subjectColor: Long,
     time: String,
     timeAlpha: Float,
-    bar: Int,
-    color: State<Color>,
-    progress: State<Float>,
-    left: String,
-    right: String,
+    caption: String,
 ) {
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    BoxWithConstraints(modifier) {
-        val fs = LocalDensity.current.fontScale
-        val byWidth = maxWidth.value / (time.length * 0.56f) / fs
-        val byHeight = (maxHeight.value - 96f) / 1.15f / fs
-        val numSize = minOf(byWidth, byHeight, 132f).coerceAtLeast(24f)
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-            Text(
-                phase.uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = color.value,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                time,
-                style = TextStyle(
-                    fontSize = numSize.sp,
-                    lineHeight = (numSize * 1.05f).sp,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = (-numSize * 0.03f).sp,
-                    fontFeatureSettings = "tnum",
-                ),
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.alpha(timeAlpha),
-            )
-            Spacer(Modifier.height(16.dp))
-            Spacer(
-                Modifier
-                    .fillMaxWidth()
-                    .height(bar.dp)
-                    .drawBehind {
-                        drawRect(track)
-                        drawRect(color.value, size = Size(size.width * progress.value.coerceIn(0f, 1f), size.height))
+    val unlit = MaterialTheme.colorScheme.onSurfaceVariant
+    val fs = LocalDensity.current.fontScale
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val s: Dp = minOf(maxWidth * 0.8f, maxHeight, 300.dp)
+        val sDp = s.value
+        Box(Modifier.size(s), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val w = size.minDimension
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = w / 2f - 2.dp.toPx()
+                val short = w * 0.04f
+                val long = w * 0.07f
+                val p = head.value
+                val frac = if (sweep) p - floor(p) else p.coerceIn(0f, 1f)
+                val pos = frac * 60f
+                val lit = color.value
+                for (i in 0 until 60) {
+                    val isLong = i % 5 == 0
+                    val len = if (isLong) long else short
+                    val a = Math.toRadians(i * 6.0 - 90.0)
+                    val dx = cos(a).toFloat()
+                    val dy = sin(a).toFloat()
+                    val amount = if (!active) 0f else if (sweep) {
+                        val behind = (pos - i + 60f) % 60f
+                        if (behind < 22f) 1f - behind / 22f else 0f
+                    } else {
+                        when {
+                            i + 1 <= pos -> 1f
+                            i < pos -> pos - i
+                            else -> 0f
+                        }
                     }
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    left,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
+                    val base = unlit.copy(alpha = if (isLong) 0.45f else 0.22f)
+                    drawLine(
+                        color = if (amount > 0f) lerp(base, lit, amount) else base,
+                        start = Offset(c.x + dx * (r - len), c.y + dy * (r - len)),
+                        end = Offset(c.x + dx * r, c.y + dy * r),
+                        strokeWidth = (if (isLong) 2.5f else 1.75f).dp.toPx(),
+                    )
+                }
+                // Head marker: a longer, heavier tick that moves continuously.
+                val ha = Math.toRadians(frac.toDouble() * 360.0 - 90.0)
+                val hx = cos(ha).toFloat()
+                val hy = sin(ha).toFloat()
+                val hl = w * 0.105f
+                drawLine(
+                    color = lit,
+                    start = Offset(c.x + hx * (r - hl), c.y + hy * (r - hl)),
+                    end = Offset(c.x + hx * r, c.y + hy * r),
+                    strokeWidth = 3.dp.toPx(),
                 )
+            }
+            val numSp = minOf(sDp * 0.74f / (time.length * 0.6f), sDp * 0.27f) / fs
+            Column(
+                Modifier.widthIn(max = s * 0.64f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ColorDot(subjectColor, 6)
+                    Spacer(Modifier.width(6.dp))
+                    MicroLabel(subject)
+                }
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    right,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    time,
+                    style = TextStyle(
+                        fontFamily = Plex,
+                        fontSize = numSp.sp,
+                        lineHeight = (numSp * 1.1f).sp,
+                        fontWeight = FontWeight.Light,
+                        letterSpacing = (-numSp * 0.02f).sp,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alpha(timeAlpha),
                 )
+                Spacer(Modifier.height(6.dp))
+                MicroLabel(caption)
             }
         }
     }
@@ -435,6 +484,11 @@ private fun StripCell(label: String, value: String, sub: String, modifier: Modif
     Column(modifier) {
         MicroLabel(label)
         Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
-        Text(sub.ifEmpty { " " }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        Text(
+            sub.ifEmpty { " " },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }

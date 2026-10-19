@@ -1,5 +1,25 @@
 package com.studyflow.app
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.animation.AnimatedContent
@@ -122,30 +142,7 @@ fun App(vm: MainVM) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            Column {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            NavigationBar(containerColor = MaterialTheme.colorScheme.background, tonalElevation = 0.dp) {
-                tabs.forEach { t ->
-                    NavigationBarItem(
-                        selected = t == tab,
-                        onClick = { cur = t.name },
-                        icon = { Icon(t.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                        label = {
-                            Text(t.label, fontWeight = if (t == tab) FontWeight.SemiBold else FontWeight.Normal)
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = Color.Transparent,
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    )
-                }
-            }
-            }
-        },
+        bottomBar = { BottomBar(tabs, tab) { cur = it.name } },
     ) { pad ->
         Box(Modifier.padding(pad).fillMaxSize()) {
             val anims = LocalAnimations.current
@@ -172,6 +169,91 @@ fun App(vm: MainVM) {
                     Tab.Settings -> SettingsScreen(vm)
                 }
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Bottom bar: Timer is the raised centre action, other tabs sit either side.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun BottomBar(tabs: List<Tab>, current: Tab, onSelect: (Tab) -> Unit) {
+    val others = tabs.filter { it != Tab.Timer }
+    val half = (others.size + 1) / 2
+    val left = others.take(half)
+    val right = others.drop(half)
+    val slots = maxOf(left.size, right.size)
+    val leftSlots: List<Tab?> = List(slots - left.size) { null } + left
+    val rightSlots: List<Tab?> = right + List(slots - right.size) { null }
+    Column(Modifier.background(MaterialTheme.colorScheme.background)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        Row(Modifier.fillMaxWidth().height(64.dp), verticalAlignment = Alignment.CenterVertically) {
+            leftSlots.forEach { t ->
+                if (t != null) NavItem(t, t == current, Modifier.weight(1f)) { onSelect(t) }
+                else Spacer(Modifier.weight(1f))
+            }
+            TimerButton(current == Tab.Timer, Modifier.weight(1.15f)) { onSelect(Tab.Timer) }
+            rightSlots.forEach { t ->
+                if (t != null) NavItem(t, t == current, Modifier.weight(1f)) { onSelect(t) }
+                else Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavItem(tab: Tab, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+        animSpec(200), label = "navColor",
+    )
+    val rule by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onBackground else Color.Transparent,
+        animSpec(200), label = "navRule",
+    )
+    Column(
+        modifier
+            .fillMaxHeight()
+            .drawBehind { drawRect(rule, size = Size(size.width, 2.dp.toPx())) }
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(tab.icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = c)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            tab.label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = c,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
+}
+
+@Composable
+private fun TimerButton(selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val anims = LocalAnimations.current
+    val spec: AnimationSpec<Float> = if (anims) spring(dampingRatio = 0.65f, stiffness = 300f) else snap()
+    val sc by animateFloatAsState(if (selected) 1f else 0.9f, spec, label = "timerScale")
+    Box(modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .offset(y = (-12).dp)
+                .size(64.dp)
+                .graphicsLayer { scaleX = sc; scaleY = sc }
+                .background(MaterialTheme.colorScheme.background, CircleShape)
+                .padding(5.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Ico.Timer, contentDescription = "Timer",
+                modifier = Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onPrimary,
+            )
         }
     }
 }

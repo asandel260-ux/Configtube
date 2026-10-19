@@ -1,5 +1,6 @@
 package com.studyflow.app
 
+import androidx.compose.ui.text.font.FontFamily
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -131,6 +132,24 @@ fun StudyTheme(s: Settings, content: @Composable () -> Unit) {
 
     val d = LocalDensity.current
     CompositionLocalProvider(LocalDensity provides Density(d.density, d.fontScale * s.fontScale)) {
-        MaterialTheme(colorScheme = scheme, shapes = shapes, typography = SwissType, content = content)
+        MaterialTheme(colorScheme = scheme, shapes = shapes, typography = SwissType.withFont(Plex), content = content)
     }
 }
+
+private fun Typography.withFont(f: FontFamily) = copy(
+    displayLarge = displayLarge.copy(fontFamily = f),
+    displayMedium = displayMedium.copy(fontFamily = f),
+    displaySmall = displaySmall.copy(fontFamily = f),
+    headlineLarge = headlineLarge.copy(fontFamily = f),
+    headlineMedium = headlineMedium.copy(fontFamily = f),
+    headlineSmall = headlineSmall.copy(fontFamily = f),
+    titleLarge = titleLarge.copy(fontFamily = f),
+    titleMedium = titleMedium.copy(fontFamily = f),
+    titleSmall = titleSmall.copy(fontFamily = f),
+    bodyLarge = bodyLarge.copy(fontFamily = f),
+    bodyMedium = bodyMedium.copy(fontFamily = f),
+    bodySmall = bodySmall.copy(fontFamily = f),
+    labelLarge = labelLarge.copy(fontFamily = f),
+    labelMedium = labelMedium.copy(fontFamily = f),
+    labelSmall = labelSmall.copy(fontFamily = f),
+)

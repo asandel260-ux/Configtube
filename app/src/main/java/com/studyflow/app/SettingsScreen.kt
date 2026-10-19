@@ -67,7 +67,7 @@ fun SettingsScreen(vm: MainVM) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        ScreenHeader("Settings", "Everything here is yours to change", Modifier.padding(bottom = 16.dp))
 
         Section("Appearance", startOpen = true) {
             Text("Theme")

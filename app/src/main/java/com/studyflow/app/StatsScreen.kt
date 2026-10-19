@@ -61,7 +61,7 @@ fun StatsScreen(vm: MainVM) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {
-        Text("Statistics", style = MaterialTheme.typography.headlineMedium)
+        ScreenHeader("Statistics", "Your study time at a glance")
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = range == 7, onClick = { range = 7 }, label = { Text("7 days") })
@@ -157,8 +157,13 @@ fun StatsScreen(vm: MainVM) {
 fun StatTile(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier) {
         Column(Modifier.padding(top = 12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(
+                label.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+            Text(value, style = MaterialTheme.typography.titleLarge, maxLines = 1)
         }
     }
 }

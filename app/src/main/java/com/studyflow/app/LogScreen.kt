@@ -4,6 +4,9 @@ import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -48,7 +51,7 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LogScreen(vm: MainVM) {
+fun LogScreen(vm: MainVM, onSubjects: () -> Unit) {
     var showAdd by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Session?>(null) }
     val use24 = vm.settings.use24h
@@ -66,10 +69,27 @@ fun LogScreen(vm: MainVM) {
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 96.dp),
         ) {
             item {
-                ScreenHeader(
-                    "Study log",
-                    "${fmtDur(last7)} in the last 7 days · ${vm.sessions.size} sessions",
-                )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                    ScreenHeader(
+                        "Study log",
+                        "${fmtDur(last7)} in the last 7 days · ${vm.sessions.size} sessions",
+                        Modifier.weight(1f),
+                    )
+                    // Pill-shaped (the rest of the app is square) so it reads as a doorway, not a row
+                    Row(
+                        Modifier
+                            .padding(start = 12.dp, top = 4.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                            .border(1.dp, MaterialTheme.colorScheme.outline, androidx.compose.foundation.shape.RoundedCornerShape(50))
+                            .clickable(onClick = onSubjects)
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Ico.Folder, null, Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Subjects", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             }
             if (groups.isEmpty()) {
                 item {

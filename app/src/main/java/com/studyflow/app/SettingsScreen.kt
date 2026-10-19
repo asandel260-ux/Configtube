@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(vm: MainVM) {
+fun SettingsScreen(vm: MainVM, onOpenProfile: () -> Unit = {}) {
     val s = vm.settings
     val ctx = LocalContext.current
     var confirmReset by remember { mutableStateOf(false) }

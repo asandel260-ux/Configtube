@@ -72,7 +72,7 @@ import kotlin.math.sin
  * Stopwatch: a sweep hand with a fading trail marks the current second.
  */
 @Composable
-fun TimerScreen(vm: MainVM) {
+fun TimerScreen(vm: MainVM, onLeaderboard: () -> Unit) {
     val t = vm.timer
     val s = vm.settings
     val el = vm.elapsed()
@@ -266,6 +266,7 @@ fun TimerScreen(vm: MainVM) {
                 }
             }
         }
+        FlashButton(onLeaderboard, Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 12.dp))
     }
 
     if (askNote) {

@@ -33,6 +33,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Column as ColumnLayout
+import com.studyflow.app.p2p.InviteCodec
+import com.studyflow.app.p2p.Social
+import java.time.LocalDate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.foundation.layout.size
@@ -75,18 +82,37 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+    private var pendingInvite by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingInvite = intent?.dataString
         setContent {
             val vm: MainVM = viewModel()
             StudyTheme(vm.settings) {
                 CompositionLocalProvider(LocalAnimations provides vm.settings.animations) {
                     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                        App(vm)
+                        App(vm, pendingInvite) { pendingInvite = null }
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingInvite = intent.dataString
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Social.get(this).acquire("ui")
+    }
+
+    override fun onStop() {
+        Social.get(this).release("ui")
+        super.onStop()
     }
 }
 
@@ -94,12 +120,12 @@ enum class Tab(val label: String, val icon: ImageVector) {
     Timer("Timer", Ico.Timer),
     Log("Log", Ico.Log),
     Stats("Stats", Ico.Stats),
-    Subjects("Subjects", Ico.Folder),
+    Groups("Groups", Ico.Group),
     Settings("Settings", Ico.Settings),
 }
 
 @Composable
-fun App(vm: MainVM) {
+fun App(vm: MainVM, invite: String?, onInviteHandled: () -> Unit) {
     val s = vm.settings
     val ctx = LocalContext.current
     val activity = ctx as ComponentActivity
@@ -133,13 +159,32 @@ fun App(vm: MainVM) {
             add(Tab.Timer)
             if (s.showLog) add(Tab.Log)
             if (s.showStats) add(Tab.Stats)
-            add(Tab.Subjects)
+            add(Tab.Groups)
             add(Tab.Settings)
         }
     }
     var cur by rememberSaveable { mutableStateOf(Tab.Timer.name) }
     val tab = tabs.firstOrNull { it.name == cur } ?: Tab.Timer
 
+    // Full-screen pages (leaderboard, groups, profiles...) are a stack of route strings above the tabs.
+    var stack by rememberSaveable { mutableStateOf(ArrayList<String>()) }
+    fun push(r: String) { stack = ArrayList(stack + r) }
+    fun pop() { if (stack.isNotEmpty()) stack = ArrayList(stack.dropLast(1)) }
+    fun replace(r: String) { stack = ArrayList(stack.dropLast(1) + r) }
+    BackHandler(enabled = stack.isNotEmpty()) { pop() }
+
+    LaunchedEffect(invite) {
+        if (invite != null) {
+            val inv = InviteCodec.parse(invite)
+            if (inv != null) {
+                vm.social.peek(inv)
+                push("g:" + inv.gref)
+            }
+            onInviteHandled()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = { BottomBar(tabs, tab) { cur = it.name } },
@@ -162,14 +207,70 @@ fun App(vm: MainVM) {
                 label = "tabs",
             ) { t ->
                 when (t) {
-                    Tab.Timer -> TimerScreen(vm)
-                    Tab.Log -> LogScreen(vm)
+                    Tab.Timer -> TimerScreen(vm) { push("lb") }
+                    Tab.Log -> LogScreen(vm) { push("sub") }
                     Tab.Stats -> StatsScreen(vm)
-                    Tab.Subjects -> SubjectsScreen(vm)
-                    Tab.Settings -> SettingsScreen(vm)
+                    Tab.Groups -> GroupsScreen(vm, { push("g:$it") }) { push("find") }
+                    Tab.Settings -> SettingsScreen(vm) { push("p:" + vm.social.me) }
                 }
             }
         }
+    }
+
+    val anims = LocalAnimations.current
+    AnimatedContent(
+        targetState = Pair(stack.lastOrNull(), stack.size),
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val push = targetState.second > initialState.second
+            val root = initialState.second == 0 || targetState.second == 0
+            when {
+                !anims -> EnterTransition.None togetherWith ExitTransition.None
+                root && push ->
+                    (slideInVertically(tween(340, easing = FastOutSlowInEasing)) { it / 5 } + fadeIn(tween(300))) togetherWith
+                        fadeOut(tween(120))
+                root ->
+                    fadeIn(tween(1)) togetherWith (slideOutVertically(tween(260, easing = FastOutSlowInEasing)) { it / 6 } + fadeOut(tween(240)))
+                push ->
+                    (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { it / 4 } + fadeIn(tween(280))) togetherWith
+                        (slideOutHorizontally(tween(300)) { -it / 8 } + fadeOut(tween(200)))
+                else ->
+                    (slideInHorizontally(tween(300, easing = FastOutSlowInEasing)) { -it / 8 } + fadeIn(tween(260))) togetherWith
+                        (slideOutHorizontally(tween(260)) { it / 4 } + fadeOut(tween(200)))
+            }
+        },
+        label = "pages",
+    ) { (route, _) ->
+        if (route != null) {
+            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                RouteHost(vm, route, ::push, ::pop, ::replace)
+            }
+        } else {
+            Box(Modifier.fillMaxSize())
+        }
+    }
+    }
+}
+
+@Composable
+private fun RouteHost(vm: MainVM, route: String, push: (String) -> Unit, pop: () -> Unit, replace: (String) -> Unit) {
+    val kind = route.substringBefore(':')
+    val arg = route.substringAfter(':', "")
+    when (kind) {
+        "lb" -> LeaderboardScreen(vm, pop, { push("p:$it") }) { push("find") }
+        "sub" -> ColumnLayout(Modifier.fillMaxSize()) {
+            TopBar("", pop)
+            SubjectsScreen(vm)
+        }
+        "find" -> GroupFinderScreen(vm, pop, { push("g:$it") }) { replace("g:$it") }
+        "g" -> GroupScreen(vm, arg, pop) { push("p:$it") }
+        "p" -> ProfileScreen(vm, arg, pop) { d -> push("d:$arg:$d") }
+        "d" -> {
+            val pub = arg.substringBefore(':')
+            val date = try { LocalDate.parse(arg.substringAfter(':')) } catch (e: Exception) { LocalDate.now() }
+            DayScreen(vm, pub, date, pop)
+        }
+        else -> Box(Modifier.fillMaxSize())
     }
 }
 

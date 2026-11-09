@@ -168,8 +168,9 @@ fun MusicMetaScreen(onBack: () -> Unit) {
                                 val n = parseDouble(cutSeconds)
                                     ?: throw IllegalArgumentException("Length must be a number of seconds")
                                 if (n <= 0) throw IllegalArgumentException("Length must be greater than 0")
-                                if (m?.durationSec != null && n > m.durationSec + 0.5) {
-                                    throw IllegalArgumentException("Length exceeds source duration (${fx(m.durationSec)} s)")
+                                val srcDur = m?.durationSec
+                                if (srcDur != null && n > srcDur + 0.5) {
+                                    throw IllegalArgumentException("Length exceeds source duration (${fx(srcDur)} s)")
                                 }
                                 args += "-t"
                                 args += fx(n)

@@ -25,7 +25,7 @@ import androidx.compose.material.icons.filled.FormatShapes
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MovieEdit
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Screenshot
@@ -63,7 +63,7 @@ private data class Tool(
 )
 
 private val tools = listOf(
-    Tool("Video Editor", "Trim, crop, rotate, speed, convert", Icons.Filled.MovieEdit, Routes.VIDEO_EDITOR, "Media"),
+    Tool("Video Editor", "Trim, crop, rotate, speed, convert", Icons.Filled.Movie, Routes.VIDEO_EDITOR, "Media"),
     Tool("Audio Editor", "Cut, join, fade, volume, convert", Icons.Filled.AudioFile, Routes.AUDIO_EDITOR, "Media"),
     Tool("Music Tags", "Title, artist, album, cover, length", Icons.Filled.Tag, Routes.MUSIC_META, "Media"),
     Tool("Circle Video", "Video ↔ circle video messages", Icons.Filled.Circle, Routes.CIRCLE_VIDEO, "Media"),

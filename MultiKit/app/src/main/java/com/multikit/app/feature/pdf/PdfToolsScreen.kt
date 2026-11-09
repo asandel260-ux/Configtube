@@ -70,7 +70,6 @@ import com.tom_roush.pdfbox.pdmodel.graphics.PDXObject
 import com.tom_roush.pdfbox.pdmodel.graphics.form.PDFormXObject
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import com.tom_roush.pdfbox.text.PDFTextStripper
-import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
@@ -78,7 +77,6 @@ import java.util.Calendar
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
-import javax.imageio.ImageIO
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.round
@@ -213,7 +211,7 @@ fun PdfToolsScreen(onBack: () -> Unit) {
                     is PDImageXObject -> {
                         if (!seen.add(xo.cosObject)) return
                         try {
-                            val img: BufferedImage = xo.image
+                            val img: Bitmap = xo.image
                             val w = img.width
                             val h = img.height
                             if (w <= 0 || h <= 0 || w.toLong() * h > 16_000_000L) {
@@ -978,25 +976,9 @@ private fun FileResultRow(file: File, onSave: () -> Unit, onShare: () -> Unit) {
     }
 }
 
-/**
- * Encode a BufferedImage as PNG. Tries javax.imageio first (registered by some
- * PDFBox setups); falls back to an Android Bitmap encode, which always works.
- */
-private fun bufferedImageToPng(img: BufferedImage): ByteArray {
+/** Encode a Bitmap as PNG. */
+private fun bufferedImageToPng(img: Bitmap): ByteArray {
     val baos = ByteArrayOutputStream()
-    val wrote = runCatching { ImageIO.write(img, "PNG", baos) }.getOrDefault(false)
-    if (wrote && baos.size() > 0) return baos.toByteArray()
-    val w = img.width
-    val h = img.height
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    try {
-        val pixels = IntArray(w * h)
-        img.getRGB(0, 0, w, h, pixels, 0, w)
-        bmp.setPixels(pixels, 0, w, 0, 0, w, h)
-        val out = ByteArrayOutputStream()
-        check(bmp.compress(Bitmap.CompressFormat.PNG, 100, out)) { "PNG encoding failed" }
-        return out.toByteArray()
-    } finally {
-        bmp.recycle()
-    }
+    check(img.compress(Bitmap.CompressFormat.PNG, 100, baos)) { "PNG encoding failed" }
+    return baos.toByteArray()
 }

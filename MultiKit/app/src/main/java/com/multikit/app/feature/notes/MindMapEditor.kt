@@ -72,7 +72,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextPainter
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -337,14 +336,14 @@ internal fun measureMindMap(
             val main = measurer.measure(
                 text = node.text.ifBlank { " " },
                 style = mainStyle,
-                constraints = Constraints(maxWidth = maxTextPx),
+                constraints = Constraints(maxWidth = maxTextPx.toInt()),
                 softWrap = true,
                 density = density,
             )
             val category = if (node.category.isBlank()) null else measurer.measure(
                 text = node.category,
                 style = categoryStyle,
-                constraints = Constraints(maxWidth = maxTextPx),
+                constraints = Constraints(maxWidth = maxTextPx.toInt()),
                 softWrap = true,
                 density = density,
             )
@@ -471,13 +470,13 @@ internal fun drawMindMapNative(
         if (categoryLayout != null) {
             canvas.save()
             canvas.translate(tx, ty)
-            TextPainter.paint(composeCanvas, categoryLayout, color = colors.category)
+            categoryLayout.multiParagraph.paint(composeCanvas, color = colors.category)
             canvas.restore()
             ty += categoryLayout.size.height + box.gap
         }
         canvas.save()
         canvas.translate(tx, ty)
-        TextPainter.paint(composeCanvas, box.text, color = colors.text)
+        box.text.multiParagraph.paint(composeCanvas, color = colors.text)
         canvas.restore()
 
         // Collapse indicator: +N hidden descendants.

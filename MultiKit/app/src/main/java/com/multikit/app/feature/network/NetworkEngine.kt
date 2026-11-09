@@ -15,7 +15,6 @@ import kotlinx.coroutines.withContext
 import org.xbill.DNS.Lookup
 import org.xbill.DNS.SimpleResolver
 import org.xbill.DNS.Type
-import org.xbill.DNS.config.ResolverConfig
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -385,12 +384,6 @@ internal object NetworkEngine {
 
     private fun resolverCandidates(): List<String> {
         val servers = mutableListOf<String>()
-        runCatching {
-            ResolverConfig.getCurrentConfig().servers().forEach { sa ->
-                val a = sa.address
-                if (a != null && !a.isLoopbackAddress) servers.add(a.hostAddress)
-            }
-        }
         servers.add("1.1.1.1")
         servers.add("8.8.8.8")
         return servers.distinct()

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MultiKit</string>
+    <string name="tile_screenshot">Screenshot</string>
+    <string name="screenshot_channel">Screenshot capture</string>
+    <string name="screenshot_notification_title">Screenshot ready</string>
+    <string name="screenshot_notification_text">Tap the tile to capture your screen</string>
+</resources>

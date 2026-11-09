@@ -1,0 +1,13 @@
+-keep class org.xbill.DNS.** { *; }
+-dontwarn org.xbill.DNS.**
+-keep class com.tom_roush.pdfbox.** { *; }
+-dontwarn com.tom_roush.pdfbox.**
+-dontwarn com.gemalto.jp2.**
+-keep class org.jaudiotagger.** { *; }
+-dontwarn org.jaudiotagger.**
+-dontwarn com.github.junrar.**
+-dontwarn org.tukaani.xz.**
+-dontwarn org.apache.commons.compress.**
+-dontwarn javax.naming.**
+-dontwarn java.awt.**
+-dontwarn javax.imageio.**

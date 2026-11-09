@@ -29,4 +29,4 @@ jobs:
           mkdir -p /tmp/out && cp MultiKit/app/build/outputs/apk/debug/*.apk /tmp/out/MultiKit-debug.apk
           git config user.name "github-actions"; git config user.email "actions@github.com"
           git checkout --orphan apk-output && git rm -rf . -q && split -b 50m -d /tmp/out/MultiKit-debug.apk MultiKit-debug.apk.part.
-          git add . && git commit -qm "MultiKit debug APK" && git push -f origin apk-output
+          git add MultiKit-debug.apk.part.* && git commit -qm "MultiKit debug APK" && git push -f origin apk-output

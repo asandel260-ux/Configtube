@@ -24,6 +24,12 @@ jobs:
         with:
           name: MultiKit-debug-apk
           path: MultiKit/app/build/outputs/apk/debug/*.apk
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete multikit-latest --cleanup-tag -y || true
+          gh release create multikit-latest MultiKit/app/build/outputs/apk/debug/app-debug.apk#MultiKit-debug.apk --title "MultiKit debug APK" --notes "Debug build from ${{ github.sha }}" --target ${{ github.sha }}
       - name: Publish APK to apk-output branch
         run: |
           mkdir -p /tmp/out && cp MultiKit/app/build/outputs/apk/debug/*.apk /tmp/out/MultiKit-debug.apk

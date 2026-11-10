@@ -53,7 +53,8 @@ private fun ImageRow(item: ImageItem, onRemove: () -> Unit) {
 @Composable
 private fun ImageList(items: SnapshotStateList<ImageItem>, onAdd: () -> Unit) {
     SectionCard("${items.size} image${if (items.size == 1) "" else "s"}") {
-        items.toList().forEach { item -> ImageRow(item) { items.remove(item) } }
+        items.take(25).forEach { item -> ImageRow(item) { items.remove(item) } }
+        if (items.size > 25) Text("+ ${items.size - 25} more (all will be processed)", style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TonalButton("Add more", onAdd, Modifier.weight(1f), Icons.Filled.AddPhotoAlternate)
             SecondaryButton("Clear", { items.clear() }, Modifier.weight(1f), Icons.Filled.Delete)

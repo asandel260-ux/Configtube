@@ -11,3 +11,19 @@
 -dontwarn javax.naming.**
 -dontwarn java.awt.**
 -dontwarn javax.imageio.**
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Exceptions
+-keep class org.apache.commons.compress.** { *; }
+-keep class org.tukaani.xz.** { *; }
+-keep class com.github.junrar.** { *; }
+-dontwarn org.slf4j.**
+-dontwarn javax.annotation.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.conscrypt.**
+-dontwarn org.openjsse.**
+-dontwarn java.lang.management.**
+-dontwarn org.ietf.jgss.**
+-dontwarn com.sun.**
+-dontwarn org.w3c.dom.**
+-dontwarn org.osgi.**
+-dontwarn aQute.**
+-dontwarn edu.umd.cs.findbugs.**

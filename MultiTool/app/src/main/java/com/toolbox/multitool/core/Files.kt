@@ -43,11 +43,24 @@ object Files {
             }
             val resolver = ctx.contentResolver
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return@withContext null
-            resolver.openOutputStream(uri)!!.use { o -> src.inputStream().use { it.copyTo(o, 64 * 1024) } }
+            try {
+                resolver.openOutputStream(uri)!!.use { o -> src.inputStream().use { it.copyTo(o, 64 * 1024) } }
+            } catch (e: Exception) {
+                resolver.delete(uri, null, null) // never leave a broken "pending" file in Downloads
+                throw e
+            }
             values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
             uri
         }
+
+    /** Temp copies are normally deleted right after use; this sweeps up leftovers from crashes or cancelled jobs. */
+    fun cleanStale(ctx: Context, maxAgeMs: Long = 60 * 60 * 1000L) {
+        val cutoff = System.currentTimeMillis() - maxAgeMs
+        ctx.cacheDir.listFiles()?.forEach { f ->
+            if ((f.name.startsWith("in_") || f.name.startsWith("out_")) && f.lastModified() < cutoff) f.deleteRecursively()
+        }
+    }
 
     fun human(bytes: Long): String {
         if (bytes < 1024) return "$bytes B"

@@ -13,13 +13,22 @@ android {
         applicationId = "com.toolbox.multitool"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "0.2.0"
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
 
+    signingConfigs {
+        // Same key on every build, so a new APK installs over the previous one and keeps your notes.
+        create("stable") {
+            storeFile = file("multitool.jks"); storePassword = "multitool"; keyAlias = "multitool"; keyPassword = "multitool"
+        }
+    }
+    androidResources { localeFilters += listOf("en", "fa") }
     buildTypes {
+        debug { signingConfig = signingConfigs.getByName("stable") }
         release {
+            signingConfig = signingConfigs.getByName("stable")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

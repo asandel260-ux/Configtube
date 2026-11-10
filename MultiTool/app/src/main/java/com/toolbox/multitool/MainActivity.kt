@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        Thread { com.toolbox.multitool.core.Files.cleanStale(applicationContext) }.start()
         setContent { MultiToolTheme { App() } }
     }
 }

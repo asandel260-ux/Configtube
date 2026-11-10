@@ -23,17 +23,26 @@ jobs:
       - name: Build debug APK
         working-directory: MultiTool
         run: gradle assembleDebug --stacktrace --no-daemon
-      - name: Name the APK
-        run: cp MultiTool/app/build/outputs/apk/debug/app-debug.apk MultiTool-debug.apk
+      - name: Build optimized release APK (R8 shrinking)
+        continue-on-error: true
+        working-directory: MultiTool
+        run: gradle assembleRelease --stacktrace --no-daemon
+      - name: Collect APKs
+        run: |
+          cp MultiTool/app/build/outputs/apk/debug/app-debug.apk MultiTool-debug.apk
+          if [ -f MultiTool/app/build/outputs/apk/release/app-release.apk ]; then
+            cp MultiTool/app/build/outputs/apk/release/app-release.apk MultiTool-release.apk
+          fi
+          ls -la MultiTool-*.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: MultiTool-debug-apk
-          path: MultiTool-debug.apk
-      - name: Publish as a GitHub Release (public download link)
+          name: MultiTool-apks
+          path: MultiTool-*.apk
+      - name: Publish as a GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" MultiTool-debug.apk \
-            --title "MultiTool debug build ${{ github.run_number }}" \
-            --notes "Debug APK built from commit ${{ github.sha }}. Install it, allowing unknown sources." \
+          gh release create "build-${{ github.run_number }}" MultiTool-*.apk \
+            --title "MultiTool build ${{ github.run_number }}" \
+            --notes "MultiTool-release.apk is the optimized build (smaller and faster). MultiTool-debug.apk is the fallback. Both use the same signing key, so a new build installs over the old one. Commit ${{ github.sha }}." \
             --target "${{ github.sha }}" --latest

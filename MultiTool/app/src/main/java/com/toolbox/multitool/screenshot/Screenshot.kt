@@ -78,7 +78,7 @@ class ScreenshotActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val mpm = getSystemService(MediaProjectionManager::class.java)
-        consent.launch(mpm.createScreenCaptureIntent())
+        if (savedInstanceState == null) consent.launch(mpm.createScreenCaptureIntent())
     }
 }
 

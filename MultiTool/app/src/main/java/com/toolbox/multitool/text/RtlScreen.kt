@@ -1,5 +1,10 @@
 package com.toolbox.multitool.text
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.Icons
 import com.toolbox.multitool.ui.*
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -14,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import com.toolbox.multitool.ui.ToolScaffold
+import com.toolbox.multitool.ui.*
 
 /**
  * Makes mixed Persian/English text render right-to-left everywhere (chat apps, Telegram, notes)
@@ -57,26 +62,37 @@ fun RtlScreen(onBack: () -> Unit) {
     val output = remember(input, normalize, digits) { RtlFixer.fix(input, normalize, digits) }
 
     ToolScaffold("Persian/English fixer", onBack) {
-        OutlinedTextField(
-            value = input, onValueChange = { input = it },
-            label = { Text("Paste text") },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp),
-        )
-        SwitchRow("Fix Arabic ي ك → ی ک", normalize) { normalize = it }
-        SwitchRow("Latin digits → Persian digits", digits) { digits = it }
-        Text("Result", style = MaterialTheme.typography.titleSmall)
-        Surface(tonalElevation = 2.dp, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                output, Modifier.padding(12.dp),
-                style = TextStyle(textDirection = TextDirection.Rtl, textAlign = TextAlign.Start),
+        SectionCard("Your text") {
+            OutlinedTextField(
+                value = input, onValueChange = { input = it },
+                label = { Text("Paste or type text") }, modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp),
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TonalButton("Paste", { input = readClipboard(ctx) }, Modifier.weight(1f), Icons.Filled.ContentPaste)
+                SecondaryButton("Clear", { input = "" }, Modifier.weight(1f), Icons.Filled.Close, enabled = input.isNotEmpty())
+            }
+            if (input.isNotEmpty()) ChipRow { Pill("${input.length} chars"); Pill("${input.lines().size} lines") }
         }
-        Button(
-            onClick = {
-                val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("fixed", output))
-            },
-            enabled = output.isNotEmpty(),
-        ) { Text("Copy") }
+        SectionCard("Options") {
+            SwitchRow("Fix Arabic ي ك → ی ک", normalize) { normalize = it }
+            SwitchRow("Latin digits → Persian digits", digits) { digits = it }
+        }
+        SectionCard("Preview in a chat") {
+            if (output.isEmpty()) Text("Your fixed text appears here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+                    SelectionContainer {
+                        Text(
+                            output, Modifier.padding(14.dp),
+                            style = TextStyle(textDirection = TextDirection.Rtl, textAlign = TextAlign.Start, fontSize = 16.sp),
+                        )
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PrimaryButton("Copy", { copyText(ctx, output) }, Modifier.weight(1f), Icons.Filled.ContentCopy, enabled = output.isNotEmpty())
+            TonalButton("Share", { shareText(ctx, output) }, Modifier.weight(1f), Icons.Filled.Share, enabled = output.isNotEmpty())
+        }
     }
 }

@@ -10,6 +10,16 @@ import android.os.Process
 import android.os.storage.StorageManager
 import android.provider.Settings
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.core.graphics.drawable.toBitmap
+import com.toolbox.multitool.ui.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.toolbox.multitool.core.Files
-import com.toolbox.multitool.ui.ToolScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -112,52 +121,83 @@ object CleanerEngine {
     }.getOrDefault("")
 }
 
+private enum class SortBy(val label: String) { Cache("Cache"), Data("Data"), App("App size"), Name("Name") }
+
 @Composable
 fun CleanerScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     var tab by remember { mutableIntStateOf(0) }
     ToolScaffold("Cleaner", onBack, scroll = false) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(tab == 0, { tab = 0 }, { Text("Apps") })
-            FilterChip(tab == 1, { tab = 1 }, { Text("Junk files") })
+        StorageCard()
+        ChipRow {
+            FilterChip(tab == 0, { tab = 0 }, { Text("Apps") }, leadingIcon = { Icon(Icons.Filled.Apps, null, Modifier.size(18.dp)) })
+            FilterChip(tab == 1, { tab = 1 }, { Text("Junk files") }, leadingIcon = { Icon(Icons.Filled.CleaningServices, null, Modifier.size(18.dp)) })
         }
         if (tab == 0) AppsTab(ctx) else JunkTab(ctx)
     }
 }
 
 @Composable
+private fun StorageCard() {
+    val root = remember { Environment.getExternalStorageDirectory() }
+    val total = root.totalSpace; val free = root.usableSpace; val used = (total - free).coerceAtLeast(0)
+    SectionCard("Device storage") {
+        LinearProgressIndicator(
+            progress = { if (total > 0) used.toFloat() / total else 0f },
+            modifier = Modifier.fillMaxWidth().height(10.dp), strokeCap = StrokeCap.Round,
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("${Files.human(used)} used", style = MaterialTheme.typography.labelLarge)
+            Text("${Files.human(free)} free of ${Files.human(total)}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 private fun ColumnScope.AppsTab(ctx: Context) {
-    val scope = rememberCoroutineScope()
     var apps by remember { mutableStateOf<List<AppSize>?>(null) }
     var access by remember { mutableStateOf(CleanerEngine.hasUsageAccess(ctx)) }
     var msg by remember { mutableStateOf("") }
+    var sort by remember { mutableStateOf(SortBy.Cache) }
 
-    LaunchedEffect(access) {
-        if (access) apps = withContext(Dispatchers.IO) { CleanerEngine.appSizes(ctx) }
-    }
+    LaunchedEffect(access) { if (access) apps = withContext(Dispatchers.IO) { CleanerEngine.appSizes(ctx) } }
     if (!access) {
-        Text("Per-app sizes need “Usage access”. Grant it for MultiTool, then come back.")
-        Button(onClick = { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }) { Text("Open Usage access settings") }
-        OutlinedButton(onClick = { access = CleanerEngine.hasUsageAccess(ctx) }) { Text("I've granted it") }
+        EmptyState(Icons.Filled.Security, "Usage access needed", "Android only shows per-app storage to apps you grant “Usage access”. Nothing leaves your phone.")
+        PrimaryButton("Open settings", { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }, icon = Icons.Filled.Settings)
+        SecondaryButton("I've granted it", { access = CleanerEngine.hasUsageAccess(ctx) }, icon = Icons.Filled.Check)
         return
     }
-    val list = apps
-    if (list == null) { CircularProgressIndicator(); return }
-    Text("Total cache: ${Files.human(list.sumOf { it.cache })} across ${list.size} apps")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = { msg = "Freed ${Files.human(CleanerEngine.clearOwnCache(ctx))} from MultiTool's own cache" }) { Text("Clear my cache") }
+    val raw = apps
+    if (raw == null) { CircularProgressIndicator(); return }
+    val list = when (sort) {
+        SortBy.Cache -> raw.sortedByDescending { it.cache }
+        SortBy.Data -> raw.sortedByDescending { it.data }
+        SortBy.App -> raw.sortedByDescending { it.code }
+        SortBy.Name -> raw.sortedBy { it.label.lowercase() }
     }
+    val maxCache = (raw.maxOfOrNull { it.cache } ?: 1L).coerceAtLeast(1L)
+
+    ChipRow { Pill("Cache ${Files.human(raw.sumOf { it.cache })}", icon = Icons.Filled.Memory); Pill("${raw.size} apps", icon = Icons.Filled.Apps) }
+    ChipRow { SortBy.entries.forEach { s -> FilterChip(sort == s, { sort = s }, { Text(s.label) }) } }
+    TonalButton("Clear MultiTool's own cache", { msg = "Freed ${Files.human(CleanerEngine.clearOwnCache(ctx))}" }, icon = Icons.Filled.DeleteSweep)
+    if (msg.isNotEmpty()) Pill(msg, icon = Icons.Filled.CheckCircle)
     Text(
-        "Android does not let regular apps clear other apps' caches. Tap an app to open its system storage page, where “Clear cache” is one tap.",
-        style = MaterialTheme.typography.bodySmall,
+        "Android does not let regular apps clear other apps' caches. Tap an app to open its storage page, where “Clear cache” is one tap.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    if (msg.isNotEmpty()) Text(msg)
     LazyColumn(Modifier.weight(1f)) {
         items(list, key = { it.pkg }) { a ->
+            val icon = remember(a.pkg) { runCatching { ctx.packageManager.getApplicationIcon(a.pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull() }
             ListItem(
-                headlineContent = { Text(a.label, maxLines = 1) },
-                supportingContent = { Text("Cache ${Files.human(a.cache)} · Data ${Files.human(a.data)} · App ${Files.human(a.code)}") },
+                leadingContent = { if (icon != null) Image(icon, null, Modifier.size(40.dp).clip(CircleShape)) else Icon(Icons.Filled.Android, null, Modifier.size(40.dp)) },
+                headlineContent = { Text(a.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                supportingContent = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Data ${Files.human(a.data)} · App ${Files.human(a.code)}", style = MaterialTheme.typography.bodySmall)
+                        LinearProgressIndicator(progress = { a.cache.toFloat() / maxCache }, modifier = Modifier.fillMaxWidth().height(4.dp), strokeCap = StrokeCap.Round)
+                    }
+                },
+                trailingContent = { Text(Files.human(a.cache), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary) },
                 modifier = Modifier.clickable {
                     ctx.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 },
@@ -177,29 +217,29 @@ private fun ColumnScope.JunkTab(ctx: Context) {
     var result by remember { mutableStateOf("") }
 
     if (!perm) {
-        Text("Scanning shared storage needs “All files access”.")
-        Button(onClick = {
+        EmptyState(Icons.Filled.FolderSpecial, "All files access needed", "To find junk in shared storage, Android requires the “All files access” permission.")
+        PrimaryButton("Grant access", {
             ctx.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }) { Text("Grant access") }
-        OutlinedButton(onClick = { perm = CleanerEngine.hasAllFiles() }) { Text("I've granted it") }
+        }, icon = Icons.Filled.Security)
+        SecondaryButton("I've granted it", { perm = CleanerEngine.hasAllFiles() }, icon = Icons.Filled.Check)
         return
     }
 
-    Button(enabled = !scanning, onClick = {
+    PrimaryButton(if (scanning) "Scanning…" else "Scan storage", icon = Icons.Filled.Search, loading = scanning, onClick = {
         scanning = true; result = ""; selected.clear()
         scope.launch {
             val r = withContext(Dispatchers.IO) { CleanerEngine.scan { current = it } }
             r.forEach { selected[it.file.absolutePath] = it.type != JunkType.Large && it.type != JunkType.Dupes } // risky kinds start unticked
             junk = r; scanning = false
         }
-    }) { Text(if (scanning) "Scanning…" else "Scan storage") }
-    if (scanning) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(current.takeLast(60), style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+    })
+    if (scanning) Text(current.takeLast(60), style = MaterialTheme.typography.bodySmall, maxLines = 1)
 
     val list = junk
     if (list != null) {
         val chosen = list.filter { selected[it.file.absolutePath] == true }
-        Text("Found ${Files.human(list.sumOf { it.size })} · selected ${Files.human(chosen.sumOf { it.size })}")
-        Button(enabled = chosen.isNotEmpty(), onClick = {
+        ChipRow { Pill("Found ${Files.human(list.sumOf { it.size })}", icon = Icons.Filled.Search); Pill("Selected ${Files.human(chosen.sumOf { it.size })}", icon = Icons.Filled.CheckCircle) }
+        PrimaryButton("Delete selected", icon = Icons.Filled.Delete, enabled = chosen.isNotEmpty(), onClick = {
             scope.launch {
                 val freed = withContext(Dispatchers.IO) {
                     var f = 0L
@@ -209,21 +249,28 @@ private fun ColumnScope.JunkTab(ctx: Context) {
                 result = "Deleted ${Files.human(freed)}"
                 junk = list.filterNot { j -> chosen.any { it.file == j.file } }
             }
-        }) { Text("Delete selected") }
-        if (result.isNotEmpty()) Text(result)
+        })
+        if (result.isNotEmpty()) Pill(result, icon = Icons.Filled.CheckCircle)
         LazyColumn(Modifier.weight(1f)) {
             JunkType.entries.forEach { t ->
                 val items = list.filter { it.type == t }.sortedByDescending { it.size }
                 if (items.isNotEmpty()) {
                     item(key = "h_$t") {
-                        Text("${t.label} · ${Files.human(items.sumOf { it.size })}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
+                        val allOn = items.all { selected[it.file.absolutePath] == true }
+                        Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(t.label, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                Text("${items.size} items · ${Files.human(items.sumOf { it.size })}", style = MaterialTheme.typography.bodySmall)
+                            }
+                            TextButton(onClick = { items.forEach { selected[it.file.absolutePath] = !allOn } }) { Text(if (allOn) "Select none" else "Select all") }
+                        }
                     }
                     items(items, key = { it.file.absolutePath + it.type }) { j ->
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(selected[j.file.absolutePath] == true, { selected[j.file.absolutePath] = it })
                             Column(Modifier.weight(1f)) {
-                                Text(j.file.name, maxLines = 1)
-                                Text(j.file.parent?.removePrefix(Environment.getExternalStorageDirectory().path).orEmpty() + " · " + Files.human(j.size), style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                                Text(j.file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(j.file.parent?.removePrefix(Environment.getExternalStorageDirectory().path).orEmpty() + " · " + Files.human(j.size), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

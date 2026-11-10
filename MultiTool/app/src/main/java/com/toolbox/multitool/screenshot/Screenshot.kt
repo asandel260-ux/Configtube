@@ -37,7 +37,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.toolbox.multitool.R
-import com.toolbox.multitool.ui.ToolScaffold
+import com.toolbox.multitool.ui.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import java.util.concurrent.Executor
 
 /**
@@ -151,22 +155,39 @@ class CaptureService : Service() {
 }
 
 @Composable
+private fun Step(n: Int, title: String, text: String) {
+    androidx.compose.foundation.layout.Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+        androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(28.dp)) {
+            androidx.compose.foundation.layout.Box(contentAlignment = androidx.compose.ui.Alignment.Center) { Text("$n", style = MaterialTheme.typography.labelLarge) }
+        }
+        androidx.compose.foundation.layout.Column {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
 fun ScreenshotScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     var msg by remember { mutableStateOf("") }
     ToolScaffold("Screenshot", onBack) {
-        Text("Add the Screenshot tile to your Quick Settings panel (swipe down, then edit tiles). Tapping it collapses the panel and captures the screen to Pictures/Screenshots.")
-        if (Build.VERSION.SDK_INT >= 33) {
-            Button(onClick = {
-                val sbm = ctx.getSystemService(StatusBarManager::class.java)
-                sbm.requestAddTileService(
-                    ComponentName(ctx, ScreenshotTileService::class.java), "Screenshot",
-                    Icon.createWithResource(ctx, R.drawable.ic_screenshot), Executor { it.run() },
-                ) { result -> msg = if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED || result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) "Tile added" else "Tile not added" }
-            }) { Text("Add tile to Quick Settings") }
-        } else Text("On Android 12 and below, add it manually from the Quick Settings edit screen.")
-        OutlinedButton(onClick = { ctx.startActivity(Intent(ctx, ScreenshotActivity::class.java)) }) { Text("Take a screenshot now (test)") }
-        if (msg.isNotEmpty()) Text(msg)
-        Text("Android 14+ asks for screen-capture consent on every capture; that prompt is a system rule and cannot be skipped.", style = MaterialTheme.typography.bodySmall)
+        SectionCard("Quick Settings tile") {
+            Step(1, "Add the tile", "Tap the button below, or edit Quick Settings and drag “Screenshot” in.")
+            Step(2, "Swipe down and tap it", "The panel closes and the screen is captured.")
+            Step(3, "Find the picture", "Saved to Pictures/Screenshots and visible in your gallery.")
+            if (Build.VERSION.SDK_INT >= 33) {
+                PrimaryButton("Add tile to Quick Settings", icon = Icons.Filled.AddCircle, onClick = {
+                    val sbm = ctx.getSystemService(StatusBarManager::class.java)
+                    sbm.requestAddTileService(
+                        ComponentName(ctx, ScreenshotTileService::class.java), "Screenshot",
+                        Icon.createWithResource(ctx, R.drawable.ic_screenshot), Executor { it.run() },
+                    ) { result -> msg = if (result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED || result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED) "Tile added" else "Tile not added" }
+                })
+            } else Text("On Android 11 and below, add it from the Quick Settings edit screen.", style = MaterialTheme.typography.bodySmall)
+        }
+        TonalButton("Take a screenshot now", { ctx.startActivity(Intent(ctx, ScreenshotActivity::class.java)) }, icon = Icons.Filled.Screenshot)
+        if (msg.isNotEmpty()) Pill(msg, icon = Icons.Filled.Info)
+        Text("Android 14 and newer ask for screen-capture consent on every capture. That prompt is a system rule and cannot be skipped.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

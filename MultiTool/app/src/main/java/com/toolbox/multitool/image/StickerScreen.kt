@@ -1,17 +1,24 @@
 package com.toolbox.multitool.image
 
-import com.toolbox.multitool.ui.*
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.toolbox.multitool.core.Files
-import com.toolbox.multitool.ui.Busy
-import com.toolbox.multitool.ui.LogBox
-import com.toolbox.multitool.ui.ToolScaffold
-import com.toolbox.multitool.ui.rememberPicker
+import com.toolbox.multitool.ui.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,53 +61,112 @@ object StickerEngine {
 fun interface FfmpegRunner { suspend fun run(args: List<String>): Boolean }
 object FfmpegProvider { var runner: FfmpegRunner? = null }
 
+private class StickerPreview(val name: String, val bmp: Bitmap, val bytes: ByteArray)
+
 @Composable
 fun StickerScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val picked = remember { mutableStateListOf<Pair<Uri, Boolean>>() } // uri to isVideo
+    val previews = remember { mutableStateMapOf<Uri, StickerPreview>() }
     var progress by remember { mutableStateOf<Float?>(null) }
     var log by remember { mutableStateOf("") }
+    val saved = remember { mutableStateListOf<Saved>() }
 
     val pick = rememberPicker(arrayOf("image/*", "video/*")) { uris ->
-        scope.launch {
-            log = ""; progress = -1f
-            uris.forEach { uri -> runCatching { convert(ctx, uri) }.onSuccess { log += it + "\n" }.onFailure { log += "✗ ${it.message}\n" } }
-            progress = null
+        uris.forEach { u ->
+            if (picked.none { it.first == u }) {
+                val mime = ctx.contentResolver.getType(u).orEmpty()
+                picked.add(u to (mime.startsWith("video/") || mime == "image/gif"))
+            }
+        }
+        saved.clear()
+    }
+
+    LaunchedEffect(picked.size) {
+        picked.toList().forEach { (u, isVideo) ->
+            if (!isVideo && u !in previews) runCatching {
+                val bmp = StickerEngine.fitTo512(ImageEngine.decode(ctx, u))
+                val bytes = withContext(Dispatchers.Default) { StickerEngine.encodeStatic(bmp) }
+                previews[u] = StickerPreview(Files.baseName(Files.displayName(ctx, u)), bmp, bytes)
+            }
         }
     }
 
     ToolScaffold("Telegram sticker", onBack) {
-        Text("Images become 512 px WebP stickers (≤512 KB, transparency kept). Videos/GIFs become 3 s VP9 WebM stickers (≤256 KB).")
-        FilePickButton("Choose images or videos", onClick = pick)
-        Busy(progress)
-        LogBox(log)
-        Text("After conversion, send the file to @Stickers in Telegram.", style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-private suspend fun convert(ctx: android.content.Context, uri: Uri): String {
-    val name = Files.displayName(ctx, uri)
-    val mime = ctx.contentResolver.getType(uri).orEmpty()
-    val base = Files.baseName(name)
-    if (mime.startsWith("video/") || mime == "image/gif") {
-        val runner = FfmpegProvider.runner ?: return "✗ $name: video stickers need an FFmpeg runner (see README)."
-        val src = Files.copyToCache(ctx, uri)
-        val out = Files.tempFile(ctx, "$base.webm")
-        var kbps = 280
-        var ok = false
-        while (kbps >= 60) {
-            ok = runner.run(StickerEngine.videoArgs(src.absolutePath, out.absolutePath, kbps))
-            if (!ok || out.length() <= 256 * 1024) break
-            kbps = (kbps * 0.75).toInt()
+        SectionCard("Telegram rules") {
+            ChipRow { Pill("512 px side"); Pill("WebP / PNG"); Pill("≤ 512 KB"); Pill("Video: 3 s WebM ≤ 256 KB") }
         }
-        src.delete()
-        if (!ok) return "✗ $name: FFmpeg failed"
-        Files.saveToDownloads(ctx, out, "$base.webm", "video/webm")
-        return "✓ $base.webm  ${Files.human(out.length())}".also { out.delete() }
+        if (picked.isEmpty()) {
+            EmptyState(Icons.Filled.EmojiEmotions, "Make stickers", "Pick pictures to see the finished sticker on a transparency grid before saving.")
+            FilePickButton("Choose images or videos", onClick = pick)
+            return@ToolScaffold
+        }
+
+        picked.toList().forEach { (u, isVideo) ->
+            SectionCard {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val p = previews[u]
+                    Box(Modifier.size(104.dp).clip(MaterialTheme.shapes.medium).checkerboard(), contentAlignment = Alignment.Center) {
+                        when {
+                            p != null -> Image(p.bmp.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                            isVideo -> Icon(Icons.Filled.Videocam, null, Modifier.size(36.dp))
+                            else -> CircularProgressIndicator(Modifier.size(24.dp))
+                        }
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(Files.displayName(ctx, u), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                        if (p != null) ChipRow { Pill("${p.bmp.width}×${p.bmp.height}"); Pill("${Files.human(p.bytes.size.toLong())}", icon = Icons.Filled.CheckCircle) }
+                        else if (isVideo) Text(
+                            if (FfmpegProvider.runner == null) "Video stickers need an FFmpeg runner (see README)." else "Will be converted to a 3 s WebM.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(onClick = { picked.removeAll { it.first == u }; previews.remove(u) }) { Icon(Icons.Filled.Close, "Remove") }
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TonalButton("Add more", pick, Modifier.weight(1f), Icons.Filled.AddPhotoAlternate)
+            SecondaryButton("Clear", { picked.clear(); previews.clear(); saved.clear() }, Modifier.weight(1f), Icons.Filled.Delete)
+        }
+        Busy(progress, "Saving stickers…")
+        if (log.isNotEmpty()) Text(log, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        PrimaryButton("Save ${picked.size} sticker${if (picked.size == 1) "" else "s"}", icon = Icons.Filled.Check, loading = progress != null, onClick = {
+            scope.launch {
+                saved.clear(); log = ""; progress = -1f
+                picked.toList().forEach { (u, isVideo) ->
+                    runCatching {
+                        val base = Files.baseName(Files.displayName(ctx, u))
+                        if (isVideo) {
+                            val runner = FfmpegProvider.runner ?: error("no FFmpeg runner installed")
+                            val src = Files.copyToCache(ctx, u)
+                            val out = Files.tempFile(ctx, "$base.webm")
+                            var kbps = 280; var ok = false
+                            while (kbps >= 60) {
+                                ok = runner.run(StickerEngine.videoArgs(src.absolutePath, out.absolutePath, kbps))
+                                if (!ok || out.length() <= 256 * 1024) break
+                                kbps = (kbps * 0.75).toInt()
+                            }
+                            src.delete()
+                            if (!ok) error("FFmpeg failed")
+                            Files.saveToDownloads(ctx, out, "$base.webm", "video/webm")?.let { saved.add(Saved("$base.webm", it, "video/webm")) }
+                            out.delete()
+                        } else {
+                            val p = previews[u] ?: error("preview not ready yet")
+                            val out = Files.tempFile(ctx, "$base.webp").also { it.writeBytes(p.bytes) }
+                            Files.saveToDownloads(ctx, out, "$base.webp", "image/webp")?.let { saved.add(Saved("$base.webp", it, "image/webp")) }
+                            out.delete()
+                        }
+                    }.onFailure { log += "✗ ${Files.displayName(ctx, u)}: ${it.message}\n" }
+                }
+                progress = null
+            }
+        })
+        ResultsCard(saved)
+        TonalButton("Open @Stickers in Telegram", onClick = {
+            runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/Stickers")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }, icon = Icons.Filled.Send)
     }
-    val bmp = StickerEngine.fitTo512(ImageEngine.decode(ctx, uri))
-    val bytes = withContext(Dispatchers.Default) { StickerEngine.encodeStatic(bmp) }
-    val out = Files.tempFile(ctx, "$base.webp").also { it.writeBytes(bytes) }
-    Files.saveToDownloads(ctx, out, "$base.webp", "image/webp")
-    return "✓ $base.webp  ${bmp.width}×${bmp.height}  ${Files.human(bytes.size.toLong())}".also { out.delete() }
 }

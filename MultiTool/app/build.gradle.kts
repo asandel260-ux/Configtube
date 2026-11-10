@@ -53,6 +53,8 @@ dependencies {
     implementation("androidx.media3:media3-transformer:$media3")
     implementation("androidx.media3:media3-effect:$media3")
     implementation("androidx.media3:media3-common:$media3")
+    implementation("androidx.media3:media3-exoplayer:$media3")
+    implementation("androidx.media3:media3-ui:$media3")
 
     // Audio tags (Android-compatible fork of jaudiotagger)
     implementation("com.github.AdrienPoupa:jaudiotagger:2.2.3")

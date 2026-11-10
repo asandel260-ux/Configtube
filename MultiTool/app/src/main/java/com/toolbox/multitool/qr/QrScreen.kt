@@ -199,7 +199,7 @@ private fun Scanner(modifier: Modifier, onResult: (String) -> Unit) {
     }
 }
 
-private fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\;").replace(",", "\\,").replace(":", "\\:").replace("\"", "\\\"")
+private fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace(":", "\\:").replace("\"", "\\\"")
 
 @Composable
 private fun Generator() {

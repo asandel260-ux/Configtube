@@ -1,5 +1,7 @@
 package com.toolbox.multitool.pdf
 
+import com.toolbox.multitool.ui.*
+import com.toolbox.multitool.ui.*
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -47,7 +49,7 @@ fun PdfExtractScreen(onBack: () -> Unit) {
     }
     ToolScaffold("PDF → images", onBack) {
         Text("Extracts every embedded image at its original resolution and saves PNGs to Downloads/MultiTool.")
-        Button(onClick = pick) { Text("Choose PDF") }
+        FilePickButton("Choose PDF", onClick = pick)
         Busy(progress)
         LogBox(log)
     }
@@ -101,10 +103,8 @@ fun ImagesToPdfScreen(onBack: () -> Unit) {
     val pick = rememberPicker(arrayOf("image/*")) { images.addAll(it) }
 
     ToolScaffold("Images → PDF", onBack) {
-        Button(onClick = pick) { Text("Add images") }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(fitA4, { fitA4 = it }); Spacer(Modifier.width(8.dp)); Text(if (fitA4) "A4 pages" else "Page = image size")
-        }
+        FilePickButton("Add images", onClick = pick)
+        SwitchRow(if (fitA4) "A4 pages" else "Page = image size", fitA4) { fitA4 = it }
         images.forEachIndexed { i, u ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("${i + 1}. ${Files.displayName(ctx, u)}", Modifier.weight(1f), maxLines = 1)

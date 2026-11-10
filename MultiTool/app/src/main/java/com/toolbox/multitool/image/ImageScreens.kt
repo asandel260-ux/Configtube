@@ -1,5 +1,6 @@
 package com.toolbox.multitool.image
 
+import com.toolbox.multitool.ui.*
 import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -56,7 +57,7 @@ fun ImageConvertScreen(onBack: () -> Unit) {
             Text("Quality ${quality.toInt()}")
             Slider(quality, { quality = it }, valueRange = 10f..100f)
         }
-        Button(onClick = pick) { Text("Choose images") }
+        FilePickButton("Choose images", onClick = pick)
         Busy(progress)
         LogBox(log)
     }
@@ -121,7 +122,7 @@ fun ImageResizeScreen(onBack: () -> Unit) {
             Text("Leave one empty to keep the aspect ratio.", style = MaterialTheme.typography.bodySmall)
         }
         FormatChooser(format) { format = it }
-        Button(onClick = pick) { Text("Choose images") }
+        FilePickButton("Choose images", onClick = pick)
         Busy(progress)
         LogBox(log)
     }
@@ -129,7 +130,7 @@ fun ImageResizeScreen(onBack: () -> Unit) {
 
 @Composable
 private fun FormatChooser(selected: ImgFormat, onSelect: (ImgFormat) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    ChipRow {
         ImgFormat.entries.forEach { f -> FilterChip(selected == f, { onSelect(f) }, { Text(f.label) }) }
     }
 }

@@ -1,5 +1,6 @@
 package com.toolbox.multitool.text
 
+import com.toolbox.multitool.ui.*
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -61,8 +62,8 @@ fun RtlScreen(onBack: () -> Unit) {
             label = { Text("Paste text") },
             modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp),
         )
-        Row { Switch(normalize, { normalize = it }); Spacer(Modifier.width(8.dp)); Text("Fix Arabic ي ك → ی ک") }
-        Row { Switch(digits, { digits = it }); Spacer(Modifier.width(8.dp)); Text("Latin digits → Persian digits") }
+        SwitchRow("Fix Arabic ي ك → ی ک", normalize) { normalize = it }
+        SwitchRow("Latin digits → Persian digits", digits) { digits = it }
         Text("Result", style = MaterialTheme.typography.titleSmall)
         Surface(tonalElevation = 2.dp, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth()) {
             Text(

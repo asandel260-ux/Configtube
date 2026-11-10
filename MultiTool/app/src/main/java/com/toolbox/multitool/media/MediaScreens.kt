@@ -1,5 +1,9 @@
 package com.toolbox.multitool.media
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import com.toolbox.multitool.ui.*
+import com.toolbox.multitool.ui.*
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -72,22 +76,27 @@ private fun EditorScreen(title: String, video: Boolean, onBack: () -> Unit) {
     }
 
     ToolScaffold(title, onBack) {
-        Button(onClick = pick) { Text(if (uri == null) "Choose file" else "Change file") }
+        FilePickButton(if (uri == null) "Choose file" else "Change file", onClick = pick)
         if (uri != null) Text("$name · ${"%.1f".format(dur / 1000.0)} s", style = MaterialTheme.typography.bodyMedium)
 
-        Text("Trim (mm:ss or seconds)", style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(start, { start = it }, label = { Text("Start") }, singleLine = true, modifier = Modifier.weight(1f))
-            OutlinedTextField(end, { end = it }, label = { Text("End") }, singleLine = true, modifier = Modifier.weight(1f))
+        SectionCard("Trim") {
+            Text("Format mm:ss or seconds. Leave empty to keep everything.", style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(start, { start = it }, label = { Text("Start") }, singleLine = true, modifier = Modifier.weight(1f))
+                OutlinedTextField(end, { end = it }, label = { Text("End") }, singleLine = true, modifier = Modifier.weight(1f))
+            }
         }
         if (video) {
-            OutlinedTextField(height, { height = it.filter(Char::isDigit) }, label = { Text("Output height px (e.g. 720)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(bitrate, { bitrate = it.filter(Char::isDigit) }, label = { Text("Video bitrate kbps (blank = auto)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0, 90, 180, 270).forEach { r -> FilterChip(rotation == r, { rotation = r }, { Text("$r°") }) }
+            SectionCard("Output") {
+                OutlinedTextField(height, { height = it.filter(Char::isDigit) }, label = { Text("Height px (e.g. 720)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(bitrate, { bitrate = it.filter(Char::isDigit) }, label = { Text("Bitrate kbps (blank = auto)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text("Rotate", style = MaterialTheme.typography.labelLarge)
+                ChipRow { listOf(0, 90, 180, 270).forEach { r -> FilterChip(rotation == r, { rotation = r }, { Text("$r°") }) } }
             }
-            Row { Switch(mute, { mute = it }); Spacer(Modifier.width(8.dp)); Text("Remove audio") }
-            Row { Switch(extractAudio, { extractAudio = it }); Spacer(Modifier.width(8.dp)); Text("Extract audio only (.m4a)") }
+            SectionCard("Options") {
+                SwitchRow("Remove audio", mute) { mute = it }
+                SwitchRow("Extract audio only (.m4a)", extractAudio) { extractAudio = it }
+            }
         } else {
             Text("Output is AAC (.m4a).", style = MaterialTheme.typography.bodySmall)
         }
@@ -117,7 +126,7 @@ private fun EditorScreen(title: String, video: Boolean, onBack: () -> Unit) {
                         .onFailure { log = "✗ ${it.message}" }
                     tmp.delete(); progress = null; job = null
                 }
-            }) { Text("Export") }
+            }) { Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("Export") }
             if (job != null) OutlinedButton(onClick = { job?.cancel(); job = null; progress = null }) { Text("Cancel") }
         }
         Busy(progress, "Exporting…")
@@ -154,7 +163,7 @@ fun AudioMetaScreen(onBack: () -> Unit) {
     }
 
     ToolScaffold("Music tags", onBack) {
-        Button(onClick = pick) { Text("Choose audio file") }
+        FilePickButton("Choose audio file", onClick = pick)
         if (uri != null) {
             Text(fileName, style = MaterialTheme.typography.titleSmall)
             Text(info, style = MaterialTheme.typography.bodySmall)

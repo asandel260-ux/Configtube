@@ -1,5 +1,6 @@
 package com.toolbox.multitool.image
 
+import com.toolbox.multitool.ui.*
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.foundation.layout.*
@@ -70,7 +71,7 @@ fun StickerScreen(onBack: () -> Unit) {
 
     ToolScaffold("Telegram sticker", onBack) {
         Text("Images become 512 px WebP stickers (≤512 KB, transparency kept). Videos/GIFs become 3 s VP9 WebM stickers (≤256 KB).")
-        Button(onClick = pick) { Text("Choose images or videos") }
+        FilePickButton("Choose images or videos", onClick = pick)
         Busy(progress)
         LogBox(log)
         Text("After conversion, send the file to @Stickers in Telegram.", style = MaterialTheme.typography.bodySmall)

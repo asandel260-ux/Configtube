@@ -5,12 +5,12 @@ on:
     paths: ['MultiTool/**', '.github/workflows/android-build.yml']
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: MultiTool
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -21,8 +21,19 @@ jobs:
         with:
           gradle-version: '8.10.2'
       - name: Build debug APK
+        working-directory: MultiTool
         run: gradle assembleDebug --stacktrace --no-daemon
+      - name: Name the APK
+        run: cp MultiTool/app/build/outputs/apk/debug/app-debug.apk MultiTool-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: MultiTool-debug-apk
-          path: MultiTool/app/build/outputs/apk/debug/*.apk
+          path: MultiTool-debug.apk
+      - name: Publish as a GitHub Release (public download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" MultiTool-debug.apk \
+            --title "MultiTool debug build ${{ github.run_number }}" \
+            --notes "Debug APK built from commit ${{ github.sha }}. Install it, allowing unknown sources." \
+            --target "${{ github.sha }}" --latest
